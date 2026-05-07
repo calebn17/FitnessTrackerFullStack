@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/block-dangerous.sh",
+        "timeout": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": ".cursor/hooks/protect-files.sh",
+        "timeout": 5,
+        "matcher": "Write|StrReplace|EditNotebook|search_replace|Edit"
+      }
+    ]
+  }
+}

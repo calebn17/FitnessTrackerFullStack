@@ -1,0 +1,164 @@
+---
+description: FitnessTracker agent rules — permissions (search/tests/lint vs mutations), change communication, design for scale, security, plans/todos (checklist sync), global + per-stack docs, pre-commit checks per CI, harness/bootstrap pointers, architecture for backend + future clients
+alwaysApply: true
+---
+
+# FitnessTracker — agent rules
+
+Consolidated project guidance for Cursor. All sections apply unless the user asks for minimal output or to skip review.
+
+---
+
+## Permissions
+
+Boundaries for tool use in this workspace:
+
+- **Search and read** — May use **all search and discovery tools** without separate permission (e.g. semantic/codebase search, ripgrep-style search, glob/file listing, reading files, listing MCP tools/resources for inspection).
+- **Tests** — May run **shell commands whose primary purpose is running automated tests** without separate permission (e.g. `pytest`, `npm test` / `vitest`, `xcodebuild test`, project test scripts). Prefer the repo’s documented commands from `fitness-backend/README.md`, `.agent-harness/CLAUDE.md`, and [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) when applicable.
+- **Lint** — May run **shell commands whose primary purpose is running linters or format checks** without separate permission (e.g. `ruff check` / `ruff format --check`, `mypy`, `npm run lint`, `npx prettier --check`, `swiftlint`). Prefer the same documented commands and CI.
+- **Edits and mutations** — **Require explicit user permission before proceeding** for any tool or action that **writes, modifies, deletes, or otherwise mutates** state: repository files, patches, deletes, git operations that change history or remotes, dependency/lockfile changes, MCP tools that modify external systems, or similar. Confirm with the user (or wait for their go-ahead) before mutating; do not assume silence implies consent.
+
+---
+
+## Change communication
+
+When you make or review code changes in this repository:
+
+1. **Keep the user in the loop** — For each logical batch of work (a feature slice, a refactor phase, or a fix), briefly state what you are doing or just did so they can follow along without reading every hunk.
+
+2. **High-level diff summary** — After edits, summarize the **diff** in plain language:
+   - **Files touched** (paths or areas: `fitness-backend`, tests, docs, etc.)
+   - **Behavior change** (what the API or tests do differently now)
+   - **Why** (spec, bug, cleanup) when it is not obvious
+
+   Prefer short bullets or a few sentences per area; do not paste the entire patch unless asked.
+
+3. **Order** — Present summaries in a sensible order (e.g. types/contracts → networking → services → routers → workers → tests → config).
+
+4. **Checkpoints** — After risky or user-visible changes (environment URLs, auth, data models), note what to **build, run, or test** to verify.
+
+This complements phase-specific plans (e.g. backend phases in `Documentation/Plans/`) and should apply to all FitnessTracker work unless the user asks for minimal output only.
+
+---
+
+## Design for scale
+
+- **Design for scale.** Prefer patterns that stay sound as usage and domains grow: respect existing layering in **`fitness-backend`** (domain modules vs `app/core`, routers vs services vs repositories), avoid unbounded queries and accidental N+1 or O(n²) paths where lists and aggregations are involved, and use pagination, batching, caching, and indexing in line with how the backend already handles reads and writes. When a shortcut trades clarity or performance for speed, call that out and fix it before it becomes load-bearing.
+
+Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [Documentation/Backend Design Spec.md](../../Documentation/Backend%20Design%20Spec.md).
+
+---
+
+## Security
+
+- **Security.** Never commit secrets, API keys, or production credentials; keep `.env*`, private keys, and service tokens out of repos, screenshots, and chat. On the **API**, verify identity on every protected route (JWT / Supabase auth per the phased roadmap; local debug paths only where explicitly documented), scope every read/write to the authenticated principal (and by `user_id` when multi-tenancy is in effect), validate and bound inputs at boundaries, and return errors that do not leak stack traces, tokens, or other users’ data. On **clients** (future iOS / web), use TLS to the API, follow the project auth flows once implemented, and avoid logging PII, tokens, or full payloads.
+
+Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [Documentation/Backend Design Spec.md](../../Documentation/Backend%20Design%20Spec.md).
+
+---
+
+## Plans and todo granularity
+
+When you **create or execute a plan** (including `TodoWrite` / task lists in chat):
+
+### Todo items must be committable units
+
+- **One bullet = one logical commit** — Each todo should represent a coherent change that could be committed on its own (tests + implementation for that slice, or one isolated refactor), not a vague mega-task.
+- **Split large work** — Prefer several small todos over one todo that mixes unrelated files or concerns.
+- **Name todos for the diff** — Wording should map clearly to what would appear in a commit message (e.g. “Add workouts list endpoint tests” not “Do backend”).
+
+### Todo items must be testable
+
+- **Verifiable completion** — Each todo must spell out (implicitly or in the plan) how you know it is done: automated tests, lint/build, a manual check, or another observable outcome — not an open-ended “improve X” with no check.
+- **Prefer runnable proof for code** — When the slice changes application or API behavior, default to including or extending **tests** (or an equivalent automated check) in that same todo so the commit is both committable and falsifiable.
+
+### Stop for review after each todo
+
+- **After completing a single todo item**, **pause**: summarize what changed, then **wait for the user to review** before starting the next item.
+- **Exception** — Only continue through multiple todos without stopping if the user explicitly asks to batch, skip review, or “do the rest.”
+
+### Keep the checklist in sync
+
+- **When a todo is finished** — Update the task list (e.g. `TodoWrite`) right away: mark that item **completed**, and do not leave items **in_progress** once the work is done.
+- **Accuracy** — The checklist the user sees should match what is actually done; refresh it after each completed unit of work, not only at the end of a session.
+
+### Full-plan documentation sync
+
+- **Plan creation requirement** — Every newly created plan must include a **final todo item** to update **system design** documentation at the right level:
+  - **Global (repository-wide):** [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) — cross-cutting architecture, data flow, API contracts, and product behavior. If the repo adds a short global index at `Documentation/system_design.md`, keep it consistent with the long-form doc where both exist.
+  - **Per stack (local):** Today the implemented service lives under **`fitness-backend/`**; backend module layout and API boundaries are detailed in [Documentation/Backend Design Spec.md](../../Documentation/Backend%20Design%20Spec.md). When a stack-specific `Documentation/system_design.md` is added under a top-level app folder (e.g. `fitness-backend/Documentation/system_design.md`, or a future iOS/web root), update that file for every stack whose architecture or behavior the plan changes.
+- **Scope of that final todo** — Same facts as **Change communication** (architecture, data-flow, API contract, client behavior), placed in the global doc and in each touched stack’s local design doc so both the whole-system view and stack-specific detail stay current.
+
+This pairs with **Change communication** (what to summarize) and optional checkpoint modes in **Implementation (pair programming)** below.
+
+---
+
+## Docs and harness sync
+
+When **a plan or implementation slice is finished** (user confirms completion, or you deliver the last planned step), **or** when the user **asks you to make commits** (or prepare a commit / PR):
+
+**Before every commit** — Run linting (and each touched stack’s usual static checks, e.g. `mypy`) for **all** areas your diff touches; fix failures before committing unless the user explicitly approves an exception. Match what CI runs for that stack (see [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) for **`fitness-backend`**: `ruff check .`, `mypy app`, `pytest` from `fitness-backend/`).
+
+### Formatting and front-end (when added)
+
+If a **web** (or other Node) package is added and CI introduces **Prettier** or similar, run the same commands CI uses on paths your diff touches (e.g. `npx prettier --write` / `--check` from that package root). **Do not rely on ESLint alone** where Prettier is enforced. Until then, backend formatting is covered by **Ruff** as configured in `fitness-backend`.
+
+1. **Keep runbooks accurate** — After substantive changes, ensure **commands and rules only** stay current where this repo documents them: primarily [`fitness-backend/README.md`](../../fitness-backend/README.md) for backend run/lint/test; [`.agent-harness/CLAUDE.md`](../../.agent-harness/CLAUDE.md) for harness role constraints and `harness` commands. If the project adds a root or subproject **`CLAUDE.md`**, prefer the **local** file for the stack you touched. **Do not** stash long-form system design in those files; use [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md), [Documentation/Backend Design Spec.md](../../Documentation/Backend%20Design%20Spec.md), and stack-local `Documentation/system_design.md` when present.
+
+2. **What to add to runbooks** — Short, durable bullets: new commands, scripts, env vars, how to verify, and pointers to the system design docs when readers need architecture context. Do **not** paste full plans or duplicate specs that belong in system design docs.
+
+3. **Edge case** — Pure typo or formatting-only edits may omit runbook updates unless the user asked for commits (then ensure the commit message still describes the change).
+
+This complements **Change communication** (session summaries) with **persistent** context.
+
+---
+
+## Implementation (pair programming / learning)
+
+Use this when extending **`fitness-backend`**, adding **workers** or **domains**, or integrating **future clients** (iOS offline-first, web SPA per system design). It complements **Change communication** above.
+
+### High-level architecture (for learning)
+
+```mermaid
+flowchart LR
+  subgraph clients [Clients]
+    iOS[iOS SwiftUI + SwiftData]
+    Web[Web SPA future]
+  end
+  subgraph api [fitness-backend]
+    FastAPI[FastAPI]
+    Domains[Domain modules]
+    DB[(PostgreSQL)]
+    Redis[(Redis)]
+    Workers[Workers / tasks]
+    FastAPI --> Domains
+    Domains --> DB
+    FastAPI --> Redis
+    Workers --> Redis
+    Workers --> DB
+  end
+  iOS -->|HTTPS REST JSON| FastAPI
+  Web -->|HTTPS REST JSON| FastAPI
+```
+
+- **Backend:** Modular monolith under `fitness-backend/app/domains/*` with routers, services, repositories; shared infrastructure in `app/core`.
+- **MVP product:** Post-workout logging, sync, and AI-related pipelines per specs — see global and backend docs for current phase scope.
+- **Clients:** iOS-first, offline-first with eventual consistency; web is in the architecture doc as a future client — keep API contracts stable and documented when both consume the same service.
+
+### Learning checkpoints (pair-programming pauses)
+
+Backend and platform work is tracked in **`Documentation/Plans/`** (e.g. [Backend Implementation Plans.md](../../Documentation/Plans/Backend%20Implementation%20Plans.md)). When the user asks to **pause after each phase or section** of a plan, work in **small batches**, stop after each agreed checkpoint, and explain **what** changed, **why** it matters, and **how to verify** (`make lint`, `make test`, `make dev`, etc., from `fitness-backend/`).
+
+- **Default:** A plain **“execute”** may ship work in **larger batches**; still give high-level summaries per **Change communication** above.
+- **Checkpoint mode:** When the user says **“use the plan checkpoints”**, **“pause after each phase”**, or similar, follow the active plan file and **stop** after each checkpoint until they say **continue**.
+- **Retrospective:** They can ask for a walkthrough **without new code** to map plan sections to files already in the repo.
+
+If a plan file differs from this rule, **follow the plan** and update this rule when the checkpoint scheme changes.
+
+### Related docs
+
+- [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md)
+- [Documentation/Backend Design Spec.md](../../Documentation/Backend%20Design%20Spec.md)
+- [Documentation/Plans/Backend Implementation Plans.md](../../Documentation/Plans/Backend%20Implementation%20Plans.md)
+- [`fitness-backend/README.md`](../../fitness-backend/README.md)
+- [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)

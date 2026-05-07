@@ -1,0 +1,3 @@
+[submodule ".agent-harness"]
+	path = .agent-harness
+	url = https://github.com/calebn17/Agent_Harness.git

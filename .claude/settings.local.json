@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x \"/Users/calebngai/Desktop/iOS Development/VaultTracker/VaultTrackerAPI/start.sh\")",
+      "Bash(find '/Users/calebngai/Desktop/iOS Development/VaultTracker/VaultTracker/VaultTracker/Models' -name *.swift)",
+      "Bash(xargs ls:*)",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(find '/Users/calebngai/Desktop/iOS Development/VaultTrackerAPI' -type f -name *.py)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --no-turbopack --name vaulttracker-web)",
+      "Bash(npx create-next-app@latest vaulttracker-web-temp --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --no-turbopack)",
+      "Bash(claude mcp:*)",
+      "Bash(docker run:*)",
+      "Bash(docker rm:*)",
+      "Bash(curl:*)",
+      "Bash(gh repo:*)",
+      "Bash(brew install:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(echo $GH_TOKEN)",
+      "Bash(env)",
+      "Bash(git:*)",
+      "Bash(git -C /Users/calebngai/Desktop/Agentic-Engineering-Projects/VaultTracker show 4e5fe39:VaultTrackerWeb/src/app/\\\\\\(authenticated\\\\\\)/layout.tsx)",
+      "Bash(ls:*)",
+      "Bash(grep -r \"analytics\\\\|Charts\\\\|Allocation\\\\|Performance\" /Users/calebngai/Desktop/Agentic-Engineering-Projects/VaultTracker/VaultTrackerWeb/e2e --include=*.ts)",
+      "Bash(find /Users/calebngai/Desktop/Agentic-Engineering-Projects/VaultTracker/VaultTrackerIOS/Documentation/Plans -type f -name *.md)",
+      "Skill(code-review:code-review)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(grep -r \"calculator\\\\|fire\\\\|FIRE\\\\|retire\" /Users/calebngai/Desktop/Agentic-Engineering-Projects/VaultTracker/VaultTrackerIOS --include=*.swift)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(xcrun --find sourcekit-lsp)",
+      "Bash(gh pr:*)",
+      "Bash(../VaultTrackerAPI/venv/bin/python -m pytest tests/ -v --tb=short)",
+      "Bash(../VaultTrackerAPI/venv/bin/ruff check:*)"
+    ]
+  }
+}

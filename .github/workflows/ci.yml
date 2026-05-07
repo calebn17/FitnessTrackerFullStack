@@ -1,0 +1,40 @@
+name: fitness-backend CI
+
+on:
+  pull_request:
+    paths:
+      - "fitness-backend/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "fitness-backend/**"
+      - ".github/workflows/ci.yml"
+
+defaults:
+  run:
+    working-directory: fitness-backend
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: fitness-backend/pyproject.toml
+
+      - name: Install package and dev tools
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy app
+
+      - name: Pytest
+        run: pytest
