@@ -1,4 +1,4 @@
-.PHONY: dev down lint typecheck test
+.PHONY: dev down lint typecheck test migrate db-reset
 
 # Run all commands from this directory: `cd fitness-backend`
 
@@ -17,3 +17,10 @@ typecheck:
 
 test:
 	PYTHONPATH=. pytest
+
+migrate:
+	alembic upgrade head
+
+db-reset:
+	docker compose exec -T postgres psql -U fitness -d fitness -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO fitness; GRANT ALL ON SCHEMA public TO public;"
+	alembic upgrade head
