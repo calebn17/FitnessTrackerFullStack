@@ -18,6 +18,22 @@ defaults:
 jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+asyncpg://fitness:fitness@localhost:5432/fitness
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: fitness
+          POSTGRES_PASSWORD: fitness
+          POSTGRES_DB: fitness
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fitness -d fitness"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +51,9 @@ jobs:
 
       - name: Mypy
         run: mypy app
+
+      - name: Alembic upgrade
+        run: alembic upgrade head
 
       - name: Pytest
         run: pytest
