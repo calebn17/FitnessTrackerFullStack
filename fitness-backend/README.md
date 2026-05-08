@@ -1,6 +1,6 @@
-# Fitness Platform — Backend (Phase 1)
+# Fitness Platform — Backend
 
-FastAPI service scaffold with local PostgreSQL + Redis via Docker Compose.
+FastAPI modular monolith with PostgreSQL + Redis via Docker Compose; **Phase 2** delivers SQLAlchemy models, Alembic migrations, and repositories (see project plans).
 
 ## Prerequisites
 
@@ -13,8 +13,28 @@ FastAPI service scaffold with local PostgreSQL + Redis via Docker Compose.
 ```bash
 cd fitness-backend
 cp .env.example .env
+```
+
+**Dependencies (pick one)**
+
+Using a local virtualenv (recommended with plain `pip`; `.venv/` is gitignored):
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+```
+
+Using [`uv`](https://docs.astral.sh/uv/) (creates/manages its own env by default):
+
+```bash
 uv sync --extra dev
-# or: pip install -e ".[dev]"
+```
+
+Plain install without an explicit venv (not recommended):
+
+```bash
+pip install -e ".[dev]"
 ```
 
 ## Development
@@ -36,16 +56,24 @@ make down
 
 ## Quality
 
+Activate `.venv` first (or use `uv run`) so `ruff`, `mypy`, and `pytest` come from that environment:
+
 ```bash
 make lint
 make typecheck
 make test
 ```
 
+Repository tests need Postgres running (`docker compose up -d postgres`), then:
+
+```bash
+PYTHONPATH=. pytest tests/unit/test_repositories.py
+```
+
 ## Layout
 
-See [Documentation/Backend Design Spec.md](../Documentation/Backend%20Design%20Spec.md) for the full modular monolith structure. Alembic is scaffolded under `alembic/`; migrations are added in Phase 2.
+See [documentation/Backend Design Spec.md](documentation/Backend%20Design%20Spec.md) for the full modular monolith structure. Alembic migrations live under `alembic/versions/` (`make migrate`, `make db-reset`).
 
 ## CI
 
-GitHub Actions workflow lives at [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (repository root) and runs on changes under `fitness-backend/`.
+GitHub Actions workflow lives at [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (repository root) and runs on changes under `fitness-backend/`: `ruff` → `mypy` → `alembic upgrade head` → `pytest` (with a Postgres service).

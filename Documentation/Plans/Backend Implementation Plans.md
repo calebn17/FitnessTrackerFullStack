@@ -120,33 +120,33 @@ dev = [
 
 ### Tasks
 
-- [ ] **2.1 SQLAlchemy Setup**
+- [x] **2.1 SQLAlchemy Setup**
   - Add async SQLAlchemy dependencies
   - Create `app/core/database.py` with engine, session factory
   - Create `Base` declarative base
 
-- [ ] **2.2 Alembic Setup**
+- [x] **2.2 Alembic Setup**
   - Initialize Alembic (`alembic init alembic`)
   - Configure for async in `alembic/env.py`
   - Create initial migration
 
-- [ ] **2.3 User Model**
+- [x] **2.3 User Model**
   - Create `app/domains/users/models.py`
   - Fields: `id`, `supabase_id`, `email`, `created_at`, `updated_at`
   - Generate migration
 
-- [ ] **2.4 Workout Models**
+- [x] **2.4 Workout Models**
   - Create `app/domains/workouts/models.py`
   - Models: `Workout`, `ExerciseSet`, `DerivedMetrics`
   - Relationships and foreign keys
   - Generate migration
 
-- [ ] **2.5 AI Models**
+- [x] **2.5 AI Models**
   - Create `app/domains/ai/models.py`
   - Model: `Insight`
   - Generate migration
 
-- [ ] **2.6 Repository Pattern**
+- [x] **2.6 Repository Pattern**
   - Create base repository class with common methods
   - Implement `UserRepository`, `WorkoutRepository`
   - Write unit tests for repositories

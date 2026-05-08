@@ -145,6 +145,8 @@ A monolith with clear domain boundaries, designed to split into services if need
 
 **Primary:** Neon PostgreSQL (serverless)
 
+**Migrations (implemented):** The backend ships **Alembic** migrations under `fitness-backend/alembic/versions/` (Phase 2). Local development applies them with `make migrate` after `docker compose up -d postgres`; CI runs `alembic upgrade head` before `pytest`.
+
 **Rationale:** 
 - Serverless scaling, branching for previews
 - ACID compliance, JSON support
@@ -205,7 +207,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| `users` | User accounts | id, email, created_at |
+| `users` | User accounts | id, supabase_id (unique), email, created_at |
 | `workouts` | Workout sessions | id, user_id, date, type |
 | `exercise_sets` | Individual sets within workout | workout_id, exercise_name, reps, weight, rpe |
 | `derived_metrics` | Computed workout stats | workout_id, volume, intensity |

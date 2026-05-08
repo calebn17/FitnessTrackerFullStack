@@ -187,123 +187,41 @@ Each domain follows a consistent layered pattern:
 
 ### 4.1 Models
 
-```python
-# app/domains/users/models.py
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from app.core.database import Base
+Implementation uses **SQLAlchemy 2.0** declarative style (`Mapped` / `mapped_column`) on `Base` from `app/core/database.py`. Primary keys and timestamps use PostgreSQL defaults (`gen_random_uuid()`, `now()`) via Alembic-aligned server defaults.
 
-class User(Base):
-    __tablename__ = "users"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True)
-    supabase_id = Column(String, unique=True, nullable=False, index=True)
-    email = Column(String, unique=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-```
+Canonical definitions:
 
-```python
-# app/domains/workouts/models.py
-class Workout(Base):
-    __tablename__ = "workouts"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    client_id = Column(UUID(as_uuid=True), index=True)  # For sync deduplication
-    date = Column(Date, nullable=False)
-    workout_type = Column(String, nullable=False)  # "strength", "cardio", etc.
-    notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
-    # Relationships
-    sets = relationship("ExerciseSet", back_populates="workout", cascade="all, delete-orphan")
-    metrics = relationship("DerivedMetrics", back_populates="workout", uselist=False)
-    insight = relationship("Insight", back_populates="workout", uselist=False)
+| Entity | Module | Table | Notes |
+|--------|--------|-------|--------|
+| `User` | `app/domains/users/models.py` | `users` | `supabase_id`, `email` unique |
+| `Workout` | `app/domains/workouts/models.py` | `workouts` | `user_id` FK → `users`; optional `client_id` (unique); `deleted_at` for soft-delete (Phase 4+) |
+| `ExerciseSet` | same | `exercise_sets` | `workout_id` FK `ON DELETE CASCADE`; indexes per Phase 2 plan |
+| `DerivedMetrics` | same | `derived_metrics` | One row per workout (`workout_id` unique); `muscle_groups` as `TEXT[]` |
+| `Insight` | `app/domains/ai/models.py` | `insights` | `workout_id` unique; `ai_output` `JSONB`; `status` default `'pending'` |
 
-class ExerciseSet(Base):
-    __tablename__ = "exercise_sets"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workout_id = Column(UUID(as_uuid=True), ForeignKey("workouts.id"), nullable=False)
-    exercise_name = Column(String, nullable=False)
-    set_number = Column(Integer, nullable=False)
-    reps = Column(Integer, nullable=False)
-    weight = Column(Float, nullable=True)  # Nullable for bodyweight exercises
-    weight_unit = Column(String, default="lbs")  # "lbs" or "kg"
-    rpe = Column(Float, nullable=True)  # 1-10 scale
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-    workout = relationship("Workout", back_populates="sets")
-
-class DerivedMetrics(Base):
-    __tablename__ = "derived_metrics"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workout_id = Column(UUID(as_uuid=True), ForeignKey("workouts.id"), unique=True)
-    total_volume = Column(Float)  # Sum of (weight * reps) across all sets
-    total_sets = Column(Integer)
-    total_reps = Column(Integer)
-    avg_rpe = Column(Float, nullable=True)
-    exercise_count = Column(Integer)
-    muscle_groups = Column(ARRAY(String))  # ["chest", "triceps", "shoulders"]
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-    workout = relationship("Workout", back_populates="metrics")
-```
-
-```python
-# app/domains/ai/models.py
-class Insight(Base):
-    __tablename__ = "insights"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workout_id = Column(UUID(as_uuid=True), ForeignKey("workouts.id"), unique=True)
-    ai_output = Column(JSONB, nullable=False)  # Structured insight data
-    prompt_version = Column(String)  # Track which prompt version generated this
-    model_version = Column(String)  # e.g., "claude-sonnet-4-20250514"
-    evaluation_score = Column(Float, nullable=True)  # Quality score 0-1
-    processing_time_ms = Column(Integer)
-    status = Column(String, default="pending")  # "pending", "completed", "failed"
-    error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # Relationships
-    workout = relationship("Workout", back_populates="insight")
-```
+Relationship attribute names in code: `User.workouts`, `Workout.user`, `Workout.exercise_sets`, `Workout.derived_metrics`, `Workout.insight`, `ExerciseSet.workout`, `DerivedMetrics.workout`, `Insight.workout`. Cascades match FK `ON DELETE CASCADE` where defined in migrations.
 
 ### 4.2 Database Connection
 
+Core wiring lives in `app/core/database.py`: a **lazy singleton** async engine (`get_engine`), `async_sessionmaker` (`get_session_factory`), and `get_db_session` for FastAPI (yield session; **callers commit**). `dispose_engine()` runs on app shutdown; tests use `init_database_engine` / `reset_database_singletons` when overriding `DATABASE_URL`.
+
 ```python
-# app/core/database.py
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from app.config import settings
+from collections.abc import AsyncGenerator
 
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_size=5,
-    max_overflow=10,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 
-async_session_factory = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    factory = get_session_factory()
+    async with factory() as session:
+        yield session
 ```
+
+FastAPI can import `get_db_session` from `app.dependencies` (re-export) or `app.core.database`.
+
+**Settings:** `database_url` from `app/config.py` (`DATABASE_URL` env; default matches Docker Compose).
+
+**Migrations:** Alembic async env in `alembic/env.py`; revisions under `alembic/versions/phase2_0*.py`. Run `make migrate` from `fitness-backend/`.
 
 ---
 
