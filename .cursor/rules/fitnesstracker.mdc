@@ -1,5 +1,5 @@
 ---
-description: FitnessTracker agent rules — permissions (search/tests/lint vs mutations), change communication, design for scale, security, plans/todos (checklist sync), global + per-stack docs, pre-commit checks per CI, harness/bootstrap pointers, architecture for backend + future clients
+description: FitnessTracker agent rules — permissions, context-before-plan (design specs + CLAUDE.md), change communication, design for scale, security, plans/todos (checklist sync), global + per-stack docs, pre-commit checks per CI, harness/bootstrap pointers, architecture for backend + future clients
 alwaysApply: true
 ---
 
@@ -17,6 +17,19 @@ Boundaries for tool use in this workspace:
 - **Tests** — May run **shell commands whose primary purpose is running automated tests** without separate permission (e.g. `pytest`, `npm test` / `vitest`, `xcodebuild test`, project test scripts). Prefer the repo’s documented commands from `fitness-backend/README.md`, `.agent-harness/CLAUDE.md`, and [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) when applicable.
 - **Lint** — May run **shell commands whose primary purpose is running linters or format checks** without separate permission (e.g. `ruff check` / `ruff format --check`, `mypy`, `npm run lint`, `npx prettier --check`, `swiftlint`). Prefer the same documented commands and CI.
 - **Edits and mutations** — **Require explicit user permission before proceeding** for any tool or action that **writes, modifies, deletes, or otherwise mutates** state: repository files, patches, deletes, git operations that change history or remotes, dependency/lockfile changes, MCP tools that modify external systems, or similar. Confirm with the user (or wait for their go-ahead) before mutating; do not assume silence implies consent.
+
+---
+
+## Context before plans and implementation
+
+Before **creating a Cursor plan**, **writing multi-step task lists**, or **implementing** changes that touch architecture, APIs, domains, or cross-cutting behavior, **read or skim** authoritative docs for big-picture alignment (do not rely on code search alone for intent and boundaries):
+
+1. **Global system design** — [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) for platform architecture, data flow, API contracts, and product behavior.
+2. **Stack design spec** — For **`fitness-backend/`**, [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
+3. **CLAUDE.md (constraints and runbooks)** — Prefer the **most local** file for the work: e.g. [`fitness-backend/documentation/CLAUDE.md`](../../fitness-backend/documentation/CLAUDE.md) for backend commands and constraints, then repository root [`CLAUDE.md`](../../CLAUDE.md), then [`.agent-harness/CLAUDE.md`](../../.agent-harness/CLAUDE.md) for harness role and `harness` commands. When both root and stack-local exist, **stack-local wins** for that stack’s commands and rules.
+4. **Phased roadmap (when applicable)** — If the task maps to an implementation phase, skim the relevant section of **`Documentation/Plans/`** (e.g. [Backend Implementation Plans.md](../../Documentation/Plans/Backend%20Implementation%20Plans.md)) so scope, checkpoints, and “done” match the plan.
+
+**Depth:** Aim for **targeted skimming** (headings, TOC if any, sections for the domains or surfaces you will change) unless the user asks for exhaustive review. **Narrow, localized edits** (typo fixes, obvious single-file tweaks) may skip this when the user requests minimal scope.
 
 ---
 
@@ -59,7 +72,7 @@ Aligned with [Documentation/Fitness Platform - System Design.md](../../Documenta
 
 ## Plans and todo granularity
 
-When you **create or execute a plan** (including `TodoWrite` / task lists in chat):
+When you **create or execute a plan** (including `TodoWrite` / task lists in chat), follow **Context before plans and implementation** above so plans reflect system and stack specs plus `CLAUDE.md` constraints before tasks are drafted:
 
 ### Todo items must be committable units
 
