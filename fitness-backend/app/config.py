@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     # Redis (used in later phases)
     redis_url: str = "redis://localhost:6379/0"
 
+    # Supabase auth (Phase 3 JWT validation)
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    supabase_jwt_audience: str = "authenticated"
+
 
 def get_settings() -> Settings:
     """Return settings instance (suitable for FastAPI Depends caching)."""
