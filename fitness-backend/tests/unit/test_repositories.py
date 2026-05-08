@@ -67,14 +67,13 @@ async def test_workout_client_id_unique(db_session) -> None:
     )
     await db_session.commit()
 
-    await workouts.create_workout(
-        user_id=user.id,
-        workout_date=date(2026, 5, 9),
-        workout_type="strength",
-        client_id=client_id,
-    )
     with pytest.raises(IntegrityError):
-        await db_session.flush()
+        await workouts.create_workout(
+            user_id=user.id,
+            workout_date=date(2026, 5, 9),
+            workout_type="strength",
+            client_id=client_id,
+        )
     await db_session.rollback()
 
 
