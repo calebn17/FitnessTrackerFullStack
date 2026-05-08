@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Do NOT run `git push`.
 - Do NOT install dependencies (`pip install`, `uv sync`, etc.).
+- Do NOT access `.env` files unless the user **EXPLICITLY** asks in the current chat.
+  - This includes `.env`, `.env.local`, `.env.*`, and similar secret env files.
+  - Use `.env.example` and documented config sources instead when possible.
 
 ## Context before plans and implementation
 

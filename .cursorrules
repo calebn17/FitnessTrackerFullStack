@@ -5,6 +5,9 @@ Expected models: claude-sonnet, cursor-composer2
 ### Constraints
 - Do NOT run git push.
 - Do NOT install dependencies (npm install, pip install, etc.).
+- Agents MUST NOT read, search, open, parse, summarize, quote, or otherwise access any `.env` file (including `.env`, `.env.*`, `.env.local`, `.env.production`, and similar secret-bearing env files) unless the user has **EXPLICITLY** requested that access in the current conversation.
+- If a task might require environment values, ask for explicit permission first and prefer `.env.example`, documented configuration, and non-secret defaults.
+- Violation of this rule is a hard stop: refuse and request explicit user authorization.
 
 Available harness commands for this role:
   harness memory query "<topic>"   — retrieve relevant memories

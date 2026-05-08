@@ -66,6 +66,14 @@ Aligned with [Documentation/Fitness Platform - System Design.md](../../Documenta
 
 - **Security.** Never commit secrets, API keys, or production credentials; keep `.env*`, private keys, and service tokens out of repos, screenshots, and chat. On the **API**, verify identity on every protected route (JWT / Supabase auth per the phased roadmap; local debug paths only where explicitly documented), scope every read/write to the authenticated principal (and by `user_id` when multi-tenancy is in effect), validate and bound inputs at boundaries, and return errors that do not leak stack traces, tokens, or other users’ data. On **clients** (future iOS / web), use TLS to the API, follow the project auth flows once implemented, and avoid logging PII, tokens, or full payloads.
 
+### Environment file access policy
+
+- **Do not read, inspect, print, summarize, or search `.env` files** (including `.env`, `.env.*`, and any secret-bearing env file) unless the user has **EXPLICITLY** requested it in the current conversation.
+- If a task might involve env values, first ask for confirmation instead of opening env files.
+- Prefer `.env.example`, docs, or `config.py` defaults for guidance.
+- Never expose env file contents in chat, logs, diffs, commits, or screenshots.
+- Violation of this rule is a hard stop: the agent must refuse and request explicit user authorization.
+
 Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md).
 
 ---
