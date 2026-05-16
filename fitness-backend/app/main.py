@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.core.database import dispose_engine
+from app.domains.users.router import router as users_router
 
 
 @asynccontextmanager
@@ -26,6 +27,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         debug=settings.debug,
     )
+
+    application.include_router(users_router, prefix=settings.api_v1_prefix)
 
     @application.get("/health")
     async def health() -> dict[str, str]:
