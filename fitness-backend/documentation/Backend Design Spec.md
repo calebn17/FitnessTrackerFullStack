@@ -19,6 +19,12 @@ status: draft
 
 This document specifies the backend implementation for the Fitness Platform. The backend is a **FastAPI modular monolith** with clear domain boundaries, designed for eventual decomposition if needed.
 
+### 1.1 How to read this spec
+
+- Sections describing currently shipped behavior (for example users auth/profile, DB wiring, and test fixtures) are intended to match the repository implementation.
+- Many larger code blocks in sync/AI/observability/deployment sections are **illustrative architecture examples** for planned phases, not copy-paste source.
+- When a snippet and repository differ, source-of-truth is the code under `app/`, `alembic/`, and `tests/`, plus stack runbooks in `fitness-backend/README.md` and `fitness-backend/documentation/CLAUDE.md`.
+
 ### Key Decisions
 
 | Aspect | Decision |
@@ -221,6 +227,8 @@ FastAPI can import `get_db_session` from `app.dependencies` (re-export) or `app.
 
 **Settings:** `database_url` from `app/config.py` (`DATABASE_URL` env; default matches Docker Compose).
 
+**Local Docker mapping:** this backend publishes Postgres as host `5433` to container `5432` (`5433:5432`) so it can coexist with other local projects that already use host `5432`. Local default DSN is `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness`.
+
 **Migrations:** Alembic async env in `alembic/env.py`; revisions under `alembic/versions/phase2_0*.py`. Run `make migrate` from `fitness-backend/`.
 
 ---
@@ -286,7 +294,7 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 | `GET` | `/api/v1/insights/workout/{workout_id}` | Get insight for workout | Required |
 | `POST` | `/api/v1/insights/workout/{workout_id}/regenerate` | Regenerate insight | Required |
 
-### 5.3 Request/Response Schemas
+### 5.3 Request/Response Schemas (illustrative for planned domains)
 
 ```python
 # app/domains/workouts/schemas.py
@@ -335,7 +343,7 @@ class WorkoutListParams(BaseModel):
 
 ---
 
-## 6. Sync Protocol
+## 6. Sync Protocol (illustrative, planned)
 
 ### 6.1 Sync Request Format
 
@@ -429,7 +437,7 @@ class SyncService:
 
 ---
 
-## 7. AI Pipeline (Fast Follow)
+## 7. AI Pipeline (Fast Follow, illustrative)
 
 ### 7.1 Pipeline Architecture
 
@@ -689,6 +697,8 @@ class WorkerSettings:
 
 ## 9. Configuration
 
+The snippet below is conceptual; use `app/config.py` as source-of-truth for active settings/defaults.
+
 ```python
 # app/config.py
 from pydantic_settings import BaseSettings
@@ -733,6 +743,8 @@ settings = get_settings()
 ---
 
 ## 10. Error Handling
+
+Illustrative application-level pattern for future domain expansion.
 
 ```python
 # app/core/exceptions.py
@@ -787,6 +799,8 @@ def _get_status_code(exc: AppException) -> int:
 
 ### 11.1 Test Structure
 
+Illustrative target structure as additional domains are implemented.
+
 ```
 tests/
 ├── conftest.py              # Shared fixtures
@@ -803,37 +817,30 @@ tests/
     └── test_workout_flow.py # Full workout → insight flow
 ```
 
-### 11.2 Key Fixtures
+### 11.2 Key Fixtures (current backend)
 
 ```python
-# tests/conftest.py
-import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+# tests/conftest.py (simplified)
+@pytest.fixture(scope="session")
+def migrated_database() -> None:
+    # Runs `python -m alembic upgrade head` once per session.
+    ...
 
 @pytest.fixture
-async def db_session():
-    """Create test database session."""
-    engine = create_async_engine(TEST_DATABASE_URL)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    async with AsyncSession(engine) as session:
-        yield session
-        await session.rollback()
+async def db_session(migrated_database) -> AsyncGenerator[AsyncSession, None]:
+    # Initializes engine for configured DATABASE_URL (local default host port 5433),
+    # truncates tables before each test, yields session, then rolls back and disposes engine.
+    ...
+```
 
+```python
+# tests/integration/test_users_router.py (simplified)
 @pytest.fixture
-async def client(db_session):
-    """Create test client with auth."""
-    app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        client.headers["Authorization"] = f"Bearer {TEST_JWT}"
-        yield client
-
-@pytest.fixture
-def mock_anthropic(mocker):
-    """Mock Claude API responses."""
-    return mocker.patch("app.domains.ai.service.anthropic.AsyncAnthropic")
+async def client(db_session: AsyncSession) -> AsyncGenerator[TestClient, None]:
+    # Ensures database setup fixture is active for this test and overrides app settings.
+    # The app's get_db_session dependency is overridden to create request-loop-local
+    # async SQLAlchemy sessions, preventing cross-event-loop asyncpg errors under TestClient.
+    ...
 ```
 
 ---

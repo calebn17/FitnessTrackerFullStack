@@ -17,7 +17,7 @@ from app.core.database import dispose_engine, get_session_factory, init_database
 def _default_database_url() -> str:
     return os.environ.get(
         "DATABASE_URL",
-        "postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness",
+        "postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness",
     )
 
 

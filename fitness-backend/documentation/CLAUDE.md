@@ -102,11 +102,11 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 | Password | `fitness` |
 | Database | `fitness` |
 | Host (from host machine) | `127.0.0.1` |
-| Port | `5432` |
+| Port | `5433` |
 
-**App / Alembic URL** — `DATABASE_URL`; default async DSN: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness`.
+**App / Alembic URL** — `DATABASE_URL`; default async DSN: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness`.
 
-**Port 5432 already in use** — Stop the other Postgres instance or change the host port mapping for the `postgres` service in `docker-compose.yml`.
+**Why port 5433?** — This backend maps host `5433` to container `5432` (`5433:5432`) so it can run alongside other local apps already using host `5432`.
 
 ## Architecture
 
@@ -122,7 +122,7 @@ app/
 │   ├── repository.py    # BaseRepository(session) — base class for all repositories
 │   └── security.py      # JWT decode + get_supabase_jwt_claims (Bearer → claims or 401)
 └── domains/
-    ├── users/           # User (supabase_id, email); service sync; GET|PUT /users/me
+    ├── users/           # User (supabase_id, email); service sync; GET /users/me
     ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
     └── ai/              # Insight (pending → completed AI output)
 ```
@@ -143,7 +143,7 @@ Each domain follows: `models.py` → `schemas.py` → `repository.py` → `servi
 
 **Migrations** live in `alembic/versions/` named `phase2_0N_*.py`. Apply with `make migrate` (see **PostgreSQL (local Docker)**).
 
-**Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness` in tests.
+**Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness` in tests.
 
 **Supabase auth (Phase 3)** — set `SUPABASE_JWT_SECRET` (required for real JWT validation on protected routes). Optional: `SUPABASE_JWT_AUDIENCE` (defaults to `authenticated`), `SUPABASE_URL` (reserved). Pydantic Settings reads these from the environment / `.env`.
 

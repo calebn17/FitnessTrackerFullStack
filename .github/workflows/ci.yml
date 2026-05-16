@@ -19,7 +19,7 @@ jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql+asyncpg://fitness:fitness@localhost:5432/fitness
+      DATABASE_URL: postgresql+asyncpg://fitness:fitness@localhost:5433/fitness
     services:
       postgres:
         image: postgres:15-alpine
@@ -28,7 +28,7 @@ jobs:
           POSTGRES_PASSWORD: fitness
           POSTGRES_DB: fitness
         ports:
-          - 5432:5432
+          - 5433:5433
         options: >-
           --health-cmd "pg_isready -U fitness -d fitness"
           --health-interval 5s

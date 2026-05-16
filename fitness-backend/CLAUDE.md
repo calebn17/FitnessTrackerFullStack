@@ -67,7 +67,7 @@ app/
 │   ├── repository.py    # BaseRepository(session)
 │   └── security.py      # JWT decode + get_supabase_jwt_claims
 └── domains/
-    ├── users/           # User model; GET|PUT /users/me
+    ├── users/           # User model; GET /users/me
     ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
     └── ai/              # Insight (AI evaluation pipeline)
 ```
@@ -89,9 +89,9 @@ docker compose exec postgres psql -U fitness -d fitness   # psql shell
 | Password | `fitness` |
 | Database | `fitness` |
 | Host     | `127.0.0.1` |
-| Port     | `5432` |
+| Port     | `5433` |
 
-Connection string: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness`
+Connection string: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness`
 
 Environment variables for auth: `SUPABASE_JWT_SECRET` (required), `SUPABASE_JWT_AUDIENCE` (default: `authenticated`).
 

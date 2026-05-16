@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     # Database (used in later phases)
-    database_url: str = "postgresql+asyncpg://fitness:fitness@localhost:5432/fitness"
+    database_url: str = "postgresql+asyncpg://fitness:fitness@localhost:5433/fitness"
 
     # Redis (used in later phases)
     redis_url: str = "redis://localhost:6379/0"
