@@ -2,21 +2,24 @@
 
 # Run all commands from this directory: `cd fitness-backend`
 
+# Prefer project venv when present (so `make` works without manual `activate`)
+PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
+
 dev:
 	docker compose up -d
-	uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	$(PYTHON) -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 down:
 	docker compose down
 
 lint:
-	ruff check .
+	$(PYTHON) -m ruff check .
 
 typecheck:
-	mypy app
+	$(PYTHON) -m mypy app
 
 test:
-	PYTHONPATH=. pytest
+	PYTHONPATH=. $(PYTHON) -m pytest
 
 migrate:
 	alembic upgrade head

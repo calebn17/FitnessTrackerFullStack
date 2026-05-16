@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def migrated_database() -> None:
     env = {**os.environ, "DATABASE_URL": _default_database_url()}
     try:
         subprocess.run(
-            ["alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=str(backend_root),
             env=env,
             check=True,
