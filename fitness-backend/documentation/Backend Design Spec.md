@@ -145,10 +145,10 @@ Each domain follows a consistent layered pattern:
 | Component | Responsibility |
 |-----------|----------------|
 | `models.py` | `User` SQLAlchemy model |
-| `schemas.py` | `UserCreate`, `UserRead`, `UserUpdate` |
+| `schemas.py` | `SupabaseUserClaims`, `UserRead` |
 | `repository.py` | `get_by_id`, `get_by_email`, `create`, `update` |
 | `service.py` | `get_or_create_from_supabase` — sync Supabase user on first API call |
-| `router.py` | `GET /users/me` — returns current user profile |
+| `router.py` | `GET /users/me` — current user profile (Bearer JWT) |
 
 #### Workouts Domain
 
@@ -230,23 +230,20 @@ FastAPI can import `get_db_session` from `app.dependencies` (re-export) or `app.
 ### 5.1 Router Structure
 
 ```python
-# app/main.py
+# app/main.py (simplified; see repo for lifespan and /health)
 from fastapi import FastAPI
+
+from app.config import get_settings
 from app.domains.users.router import router as users_router
-from app.domains.workouts.router import router as workouts_router
-from app.domains.sync.router import router as sync_router
-from app.domains.ai.router import router as ai_router
 
-app = FastAPI(
-    title="Fitness Platform API",
-    version="1.0.0",
-)
-
-app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
-app.include_router(workouts_router, prefix="/api/v1/workouts", tags=["workouts"])
-app.include_router(sync_router, prefix="/api/v1/sync", tags=["sync"])
-app.include_router(ai_router, prefix="/api/v1/insights", tags=["insights"])
+def create_app() -> FastAPI:
+    settings = get_settings()
+    application = FastAPI(title=settings.app_name, debug=settings.debug)  # lifespan + /health in repo
+    application.include_router(users_router, prefix=settings.api_v1_prefix)
+    return application
 ```
+
+Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). Additional domain routers (`workouts`, `sync`, `ai`) are planned; not all are registered in the scaffold yet.
 
 ### 5.2 Endpoint Specifications
 
@@ -254,8 +251,13 @@ app.include_router(ai_router, prefix="/api/v1/insights", tags=["insights"])
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| `GET` | `/api/v1/users/me` | Get current user profile | Required |
-| `PUT` | `/api/v1/users/me` | Update user profile | Required |
+| `GET` | `/api/v1/users/me` | Get current user profile; creates local `User` on first authenticated request and syncs email from token when changed | Required (Bearer JWT) |
+
+**`GET /api/v1/users/me` response (200)** — JSON body matches `UserRead`: `id` (UUID), `supabase_id`, `email`, `created_at`, `updated_at` (nullable). The access token must include string claims `sub`, `email`, `exp`, and `aud` (validated with PyJWT; audience defaults to settings `supabase_jwt_audience`, usually `authenticated`).
+
+**Auth errors (401)** — JSON `detail` is an object with stable `code` values including: `missing_authorization`, `invalid_authorization_format`, `auth_not_configured`, `token_expired`, `token_invalid_audience`, `token_invalid_signature`, `token_missing_claim`, `token_invalid`.
+
+**User claims (422)** — If the JWT decodes but cannot be turned into a local user (for example missing `email`), `detail` includes `code`: `invalid_user_claims` plus Pydantic `errors`.
 
 #### Workouts Endpoints
 
@@ -667,55 +669,21 @@ class WorkerSettings:
 
 ## 8. Authentication
 
-### 8.1 Supabase JWT Validation
+**Phase 3 (implemented)** — The API validates Supabase-issued **HS256** access tokens from the `Authorization: Bearer <token>` header.
 
-```python
-# app/core/security.py
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import jwt
-from app.config import settings
+### 8.1 Module responsibilities
 
-security = HTTPBearer()
+| Module | Role |
+|--------|------|
+| `app/config.py` | `Settings.supabase_jwt_secret`, `supabase_jwt_audience` (default `authenticated`), `supabase_url` (optional, reserved) |
+| `app/core/security.py` | `decode_supabase_access_token()` (PyJWT `jwt.decode` with required `exp`, `sub`, `aud`); `get_supabase_jwt_claims` dependency parses Bearer, maps PyJWT failures to **401** with JSON `detail` `{ "code", "message", ... }` and `WWW-Authenticate: Bearer` |
+| `app/dependencies.py` | Re-exports `get_db_session`, `get_settings`, `get_supabase_jwt_claims` for routers |
+| `app/domains/users/service.py` | `UserService.get_or_create_from_supabase(claims)` — validates `sub` + `email` via `SupabaseUserClaims`, looks up `UserRepository.get_by_supabase_id`, syncs email when changed, else `create` + `commit` (with `IntegrityError` recovery for races and email uniqueness conflicts) |
+| `app/domains/users/router.py` | `GET /users/me` mounted under `settings.api_v1_prefix`; depends on `get_supabase_jwt_claims` + `get_db_session`; returns `UserRead`; `ValidationError` from user provisioning → **422** `invalid_user_claims` |
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db),
-) -> User:
-    """Validate Supabase JWT and return/create user."""
-    token = credentials.credentials
-    
-    try:
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
-    
-    supabase_id = payload.get("sub")
-    email = payload.get("email")
-    
-    # Get or create user in our database
-    user_service = UserService()
-    user = await user_service.get_or_create_from_supabase(
-        supabase_id=supabase_id,
-        email=email,
-        db=db
-    )
-    
-    return user
-```
+### 8.2 Stable `401` `detail.code` values
+
+`missing_authorization`, `invalid_authorization_format`, `auth_not_configured` (empty JWT secret), `token_expired`, `token_invalid_audience`, `token_invalid_signature`, `token_missing_claim` (includes `claim` key), `token_invalid`.
 
 ---
 
@@ -738,9 +706,10 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str
     
-    # Supabase
-    supabase_url: str
-    supabase_jwt_secret: str
+    # Supabase (Phase 3 — JWT validation; source of truth: `app/config.py`)
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    supabase_jwt_audience: str = "authenticated"
     
     # Anthropic
     anthropic_api_key: str

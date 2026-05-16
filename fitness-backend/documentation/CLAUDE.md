@@ -51,6 +51,7 @@ Single test file (after activating `.venv` or with deps on `PATH`):
 
 ```bash
 PYTHONPATH=. pytest tests/unit/test_repositories.py
+PYTHONPATH=. pytest tests/integration/test_users_router.py
 ```
 
 Single test by name:
@@ -109,18 +110,19 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 2 (Database & Models)**.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 3 (Supabase JWT + `/api/v1/users/me`)** on top of Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app() factory; /health endpoint
-├── config.py            # Pydantic Settings (DATABASE_URL, DEBUG, etc.)
-├── dependencies.py      # FastAPI DI (get_db_session)
+├── main.py              # create_app(); /health; includes users router under api_v1_prefix
+├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
+├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
 │   ├── database.py      # Async SQLAlchemy engine/session singletons; Base declarative class
-│   └── repository.py    # BaseRepository(session) — base class for all repositories
+│   ├── repository.py    # BaseRepository(session) — base class for all repositories
+│   └── security.py      # JWT decode + get_supabase_jwt_claims (Bearer → claims or 401)
 └── domains/
-    ├── users/           # User (supabase_id, email)
+    ├── users/           # User (supabase_id, email); service sync; GET|PUT /users/me
     ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
     └── ai/              # Insight (pending → completed AI output)
 ```
@@ -142,6 +144,8 @@ Each domain follows: `models.py` → `schemas.py` → `repository.py` → `servi
 **Migrations** live in `alembic/versions/` named `phase2_0N_*.py`. Apply with `make migrate` (see **PostgreSQL (local Docker)**).
 
 **Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness` in tests.
+
+**Supabase auth (Phase 3)** — set `SUPABASE_JWT_SECRET` (required for real JWT validation on protected routes). Optional: `SUPABASE_JWT_AUDIENCE` (defaults to `authenticated`), `SUPABASE_URL` (reserved). Pydantic Settings reads these from the environment / `.env`.
 
 ## Repository Pattern
 

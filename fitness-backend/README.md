@@ -1,6 +1,6 @@
 # Fitness Platform — Backend
 
-FastAPI modular monolith with PostgreSQL + Redis via Docker Compose; **Phase 2** delivers SQLAlchemy models, Alembic migrations, and repositories (see project plans).
+FastAPI modular monolith with PostgreSQL + Redis via Docker Compose. **Phase 2** adds SQLAlchemy models, Alembic migrations, and repositories; **Phase 3** adds Supabase JWT validation and `/api/v1/users/me` (see project plans and design docs).
 
 ## Prerequisites
 
@@ -47,6 +47,7 @@ make dev
 
 - API: `http://localhost:8000`
 - Health: `curl http://localhost:8000/health` → `{"status":"ok"}`
+- Auth: set `SUPABASE_JWT_SECRET` in `.env` (optional: `SUPABASE_JWT_AUDIENCE`, default `authenticated`; `SUPABASE_URL` reserved for future use). Without `SUPABASE_JWT_SECRET`, authenticated routes return **401** with `detail.code` = `auth_not_configured`.
 
 Stop containers:
 
@@ -68,6 +69,7 @@ Repository tests need Postgres running (`docker compose up -d postgres`), then:
 
 ```bash
 PYTHONPATH=. pytest tests/unit/test_repositories.py
+PYTHONPATH=. pytest tests/integration/test_users_router.py
 ```
 
 ## Layout
