@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Before **creating an implementation plan**, **writing multi-step task lists**, or **implementing** changes that touch architecture, APIs, domains, or cross-cutting behavior, **read or skim** the docs below for alignment (do not rely on code alone for intent and boundaries):
 
 1. **Global system design** — `Documentation/Fitness Platform - System Design.md` (repository root) — platform architecture, data flow, API contracts, and product behavior.
-2. **Backend design spec** — [`documentation/Backend Design Spec.md`](documentation/Backend%20Design%20Spec.md) — module layout and API boundaries. For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
+2. **Backend design spec** — [`documentation/System Design Docs/Backend Design Spec.md`](System%20Design%20Docs/Backend%20Design%20Spec.md) — module layout and API boundaries (index + parts). Short redirect: [`documentation/Backend Design Spec.md`](Backend%20Design%20Spec.md). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
 3. **CLAUDE.md (constraints and runbooks)** — Prefer **this file** for backend commands, venv, Postgres, and tests; then repository root `CLAUDE.md` for the short repo-wide summary; then `.agent-harness/CLAUDE.md` for harness role and `harness` commands. **Stack-local wins** for this stack when both exist.
 4. **Phased roadmap (when applicable)** — Skim the relevant section of `Documentation/Plans/` (e.g. `Documentation/Plans/Backend Implementation Plans.md`).
 
@@ -179,7 +179,7 @@ Tests skip automatically (not fail) if Postgres is unreachable.
 
 ## Documentation
 
-- [`documentation/Backend Design Spec.md`](documentation/Backend%20Design%20Spec.md) — Backend module layout and API boundaries
+- [`documentation/System Design Docs/Backend Design Spec.md`](System%20Design%20Docs/Backend%20Design%20Spec.md) — Backend module layout (index + parts)
 - Repository-wide architecture: `Documentation/Fitness Platform - System Design.md` (repo root)
 
 ## CI

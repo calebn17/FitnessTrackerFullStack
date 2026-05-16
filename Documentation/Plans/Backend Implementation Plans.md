@@ -12,7 +12,7 @@ status: draft
 
 # Fitness Platform - Backend Implementation Plans
 
-> Reference: [[Backend Design Spec]] | [[Fitness Platform - System Design]]
+> Reference: [Backend Design Spec (index)](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md) | [Fitness Platform - System Design](../Fitness%20Platform%20-%20System%20Design.md)
 
 This document outlines phased implementation plans for building the Fitness Platform backend. Each phase is self-contained and results in a working, deployable increment.
 
@@ -65,7 +65,7 @@ This document outlines phased implementation plans for building the Fitness Plat
   - Create `app/config.py` with Pydantic Settings
 
 - [ ] **1.3 Project Structure**
-  - Create directory structure per [[Backend Design Spec#2. Project Structure]]
+  - Create directory structure per [Backend Design Spec §2](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec%20-%20Part%2001%20Overview%20Structure%20Domains.md#2-project-structure)
   - Add `__init__.py` files
   - Create placeholder modules
 
@@ -314,7 +314,7 @@ SUPABASE_JWT_SECRET=your-jwt-secret
 
 - [ ] **4.4 Workout Router**
   - Create `app/domains/workouts/router.py`
-  - Implement all endpoints per [[Backend Design Spec#5.2 Endpoint Specifications]]
+  - Implement all endpoints per [Backend Design Spec §5.2](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec%20-%20Part%2003%20API.md#52-endpoint-specifications)
 
 - [ ] **4.5 Exercise Set Endpoints**
   - `POST /workouts/{id}/sets` — add set

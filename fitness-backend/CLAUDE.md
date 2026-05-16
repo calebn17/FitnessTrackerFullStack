@@ -14,7 +14,7 @@ This is the **authoritative** CLAUDE.md for the `fitness-backend/` stack. It ove
 Before creating plans or implementing changes that touch architecture, APIs, or cross-cutting behavior, skim:
 
 1. `Documentation/Fitness Platform - System Design.md` (repo root) — platform architecture
-2. `documentation/Backend Design Spec.md` — module layout and API boundaries
+2. `documentation/System Design Docs/Backend Design Spec.md` — module layout and API boundaries (index + parts; redirect at `documentation/Backend Design Spec.md`)
 3. `Documentation/Plans/Backend Implementation Plans.md` — phased roadmap
 
 Trivial, localized edits may skip this.

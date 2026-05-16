@@ -75,7 +75,7 @@ PYTHONPATH=. pytest tests/integration/test_users_router.py
 
 ## Layout
 
-See [documentation/Backend Design Spec.md](documentation/Backend%20Design%20Spec.md) for the full modular monolith structure. Alembic migrations live under `alembic/versions/` (`make migrate`, `make db-reset`).
+See [documentation/System Design Docs/Backend Design Spec.md](documentation/System%20Design%20Docs/Backend%20Design%20Spec.md) for the modular monolith layout (index + linked part files). Alembic migrations live under `alembic/versions/` (`make migrate`, `make db-reset`).
 
 ## CI
 
