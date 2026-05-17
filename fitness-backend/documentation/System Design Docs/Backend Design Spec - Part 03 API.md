@@ -24,15 +24,17 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.domains.users.router import router as users_router
+from app.domains.workouts.router import router as workouts_router
 
 def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(title=settings.app_name, debug=settings.debug)  # lifespan + /health in repo
     application.include_router(users_router, prefix=settings.api_v1_prefix)
+    application.include_router(workouts_router, prefix=settings.api_v1_prefix)
     return application
 ```
 
-Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). Additional domain routers (`workouts`, `sync`, `ai`) are planned; not all are registered in the scaffold yet.
+Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). The `workouts` router is registered for Phase 4 CRUD; `sync` and `ai` routers remain planned/future wiring in `create_app`.
 
 ### 5.2 Endpoint Specifications
 
@@ -61,6 +63,18 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 | `PUT` | `/api/v1/workouts/{id}/sets/{set_id}` | Update set | Required |
 | `DELETE` | `/api/v1/workouts/{id}/sets/{set_id}` | Delete set | Required |
 
+**Path `{id}`** — Server-assigned workout UUID (`workouts.id`), not the offline `client_id`.
+
+**List response (200 `GET /api/v1/workouts`)** — JSON body: `items` (array of `WorkoutRead`), `total` (integer), `page`, `per_page`.
+
+**List query validation (422)** — Invalid list query values (for example unsupported `order_by`, `order_dir`, or `workout_type`) return `422 Unprocessable Entity`.
+
+**Update notes semantics** — In `PUT /api/v1/workouts/{id}`, sending `notes` as `null` explicitly clears stored notes. Omitting `notes` leaves notes unchanged.
+
+**Soft delete** — `DELETE /api/v1/workouts/{id}` sets `workouts.deleted_at`; soft-deleted rows are omitted from list and single-get responses.
+
+**Errors** — `404` with `detail.code` `workout_not_found` or `set_not_found` when the resource is missing or not owned by the caller. `409` with `detail.code` `duplicate_client_id` when `client_id` collides with an existing workout (global unique on `workouts.client_id`).
+
 #### Sync Endpoints
 
 | Method | Path | Description | Auth |
@@ -78,9 +92,9 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 ### 5.3 Request/Response Schemas (illustrative for planned domains)
 
 ```python
-# app/domains/workouts/schemas.py
-from pydantic import BaseModel, Field
-from datetime import date
+# app/domains/workouts/schemas.py (representative; see repo for full models)
+from pydantic import BaseModel, ConfigDict, Field
+from datetime import date, datetime
 from uuid import UUID
 
 class ExerciseSetCreate(BaseModel):
@@ -91,6 +105,36 @@ class ExerciseSetCreate(BaseModel):
     weight_unit: str = Field("lbs", pattern="^(lbs|kg)$")
     rpe: float | None = Field(None, ge=1, le=10)
 
+class ExerciseSetUpdate(BaseModel):
+    exercise_name: str | None = Field(None, min_length=1, max_length=100)
+    set_number: int | None = Field(None, ge=1)
+    reps: int | None = Field(None, ge=1, le=1000)
+    weight: float | None = Field(None, ge=0)
+    weight_unit: str | None = Field(None, pattern="^(lbs|kg)$")
+    rpe: float | None = Field(None, ge=1, le=10)
+
+class ExerciseSetRead(BaseModel):
+    id: UUID
+    exercise_name: str
+    set_number: int
+    reps: int
+    weight: float | None
+    weight_unit: str
+    rpe: float | None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class DerivedMetricsRead(BaseModel):
+    id: UUID
+    total_volume: float | None
+    total_sets: int | None
+    total_reps: int | None
+    avg_rpe: float | None
+    exercise_count: int | None
+    muscle_groups: list[str] | None
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
 class WorkoutCreate(BaseModel):
     client_id: UUID  # Client-generated UUID for deduplication
     date: date
@@ -98,9 +142,15 @@ class WorkoutCreate(BaseModel):
     notes: str | None = Field(None, max_length=1000)
     sets: list[ExerciseSetCreate] = Field(default_factory=list)
 
+class WorkoutUpdate(BaseModel):
+    date: date | None = None
+    workout_type: str | None = Field(None, pattern="^(strength|cardio|flexibility|other)$")
+    notes: str | None = Field(None, max_length=1000)
+    sets: list[ExerciseSetCreate] | None = None  # if provided, replaces all sets
+
 class WorkoutRead(BaseModel):
     id: UUID
-    client_id: UUID
+    client_id: UUID | None  # null only for legacy rows; API create requires client_id
     date: date
     workout_type: str
     notes: str | None
@@ -120,5 +170,11 @@ class WorkoutListParams(BaseModel):
     date_to: date | None = None
     order_by: str = Field("date", pattern="^(date|created_at)$")
     order_dir: str = Field("desc", pattern="^(asc|desc)$")
+
+class WorkoutListResponse(BaseModel):
+    items: list[WorkoutRead]
+    total: int
+    page: int
+    per_page: int
 ```
 
