@@ -25,7 +25,7 @@ Canonical definitions:
 | `User` | `app/domains/users/models.py` | `users` | `supabase_id`, `email` unique |
 | `Workout` | `app/domains/workouts/models.py` | `workouts` | `user_id` FK → `users`; optional `client_id` (unique); `deleted_at` for soft-delete (Phase 4+) |
 | `ExerciseSet` | same | `exercise_sets` | `workout_id` FK `ON DELETE CASCADE`; indexes per Phase 2 plan |
-| `DerivedMetrics` | same | `derived_metrics` | One row per workout (`workout_id` unique); `muscle_groups` as `TEXT[]` |
+| `DerivedMetrics` | same | `derived_metrics` | One row per workout (`workout_id` unique); `muscle_groups` as `TEXT[]`; row is created/updated by the workouts service when sets change (Phase 5) |
 | `Insight` | `app/domains/ai/models.py` | `insights` | `workout_id` unique; `ai_output` `JSONB`; `status` default `'pending'` |
 
 Relationship attribute names in code: `User.workouts`, `Workout.user`, `Workout.exercise_sets`, `Workout.derived_metrics`, `Workout.insight`, `ExerciseSet.workout`, `DerivedMetrics.workout`, `Insight.workout`. Cascades match FK `ON DELETE CASCADE` where defined in migrations.

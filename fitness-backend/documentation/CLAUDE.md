@@ -111,7 +111,7 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 4 (Workout CRUD + exercise sets)** on top of Phase 3 auth and Phase 2 data layer.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 5 (derived metrics)** on top of Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
 
 ```
 app/

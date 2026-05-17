@@ -124,7 +124,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 
 #### Workout Domain
 - CRUD for workouts, exercises, sets
-- Derived metrics calculation (volume, intensity)
+- **Derived metrics (Phase 5):** On every workout create and on any exercise-set change (add / update / delete, or full replace via `PUT`), the backend recomputes aggregates, upserts one `derived_metrics` row per workout (`total_volume`, `total_sets`, `total_reps`, `avg_rpe`, `exercise_count`, `muscle_groups` from a small exercise→muscle map), and returns `metrics` on `WorkoutRead` for list and get responses.
 - History queries with pagination
 
 #### Activity Domain (Future)
@@ -210,7 +210,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 | `users` | User accounts | id, supabase_id (unique), email, created_at |
 | `workouts` | Workout sessions | id, user_id, date, type |
 | `exercise_sets` | Individual sets within workout | workout_id, exercise_name, reps, weight, rpe |
-| `derived_metrics` | Computed workout stats | workout_id, volume, intensity |
+| `derived_metrics` | Computed workout stats (one row per workout; server-maintained) | workout_id, total_volume, total_sets, total_reps, avg_rpe, exercise_count, muscle_groups |
 | `insights` | AI-generated analysis | workout_id, ai_output, created_at |
 
 ---
@@ -224,9 +224,9 @@ A monolith with clear domain boundaries, designed to split into services if need
 | `POST` | `/api/v1/auth/register` | User registration |
 | `POST` | `/api/v1/auth/login` | User login, returns JWT |
 | `GET` | `/api/v1/users/me` | Current user profile (Bearer Supabase access JWT); creates local `users` row on first success |
-| `GET` | `/api/v1/workouts` | List workouts (paginated); response `{ items, total, page, per_page }` (Bearer JWT) |
-| `POST` | `/api/v1/workouts` | Create workout (requires `client_id`, `workout_type`, optional `sets`) |
-| `GET` | `/api/v1/workouts/{id}` | Get workout by **server** `id` with sets and optional metrics / insight status |
+| `GET` | `/api/v1/workouts` | List workouts (paginated); each item includes `metrics` (Phase 5); response `{ items, total, page, per_page }` (Bearer JWT) |
+| `POST` | `/api/v1/workouts` | Create workout (requires `client_id`, `workout_type`, optional `sets`); response includes computed `metrics` |
+| `GET` | `/api/v1/workouts/{id}` | Get workout by **server** `id` with sets, `metrics`, and insight status |
 | `PUT` | `/api/v1/workouts/{id}` | Update workout (`notes: null` clears notes; omitted fields unchanged) |
 | `DELETE` | `/api/v1/workouts/{id}` | Soft-delete workout (`deleted_at`); hidden from list/get |
 | `POST` | `/api/v1/workouts/{id}/sets` | Add exercise set |
@@ -234,6 +234,8 @@ A monolith with clear domain boundaries, designed to split into services if need
 | `DELETE` | `/api/v1/workouts/{id}/sets/{set_id}` | Delete set (hard delete row) |
 | `GET` | `/api/v1/workouts/{id}/insights` | Get AI insights for workout |
 | `POST` | `/api/v1/sync` | Batch sync endpoint for offline changes |
+
+**Derived metrics:** `total_volume` is the sum of `weight * reps` over sets with non-null weight; null weight counts as 0 volume. Metadata-only `PUT` (e.g. notes) does not recompute metrics. Unknown exercises contribute no `muscle_groups` entries.
 
 ### Request/Response Patterns
 

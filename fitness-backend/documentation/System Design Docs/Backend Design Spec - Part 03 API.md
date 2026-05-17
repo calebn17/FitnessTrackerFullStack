@@ -75,6 +75,8 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 
 **Errors** — `404` with `detail.code` `workout_not_found` or `set_not_found` when the resource is missing or not owned by the caller. `409` with `detail.code` `duplicate_client_id` when `client_id` collides with an existing workout (global unique on `workouts.client_id`).
 
+**Derived metrics (Phase 5)** — Every `WorkoutRead` includes a `metrics` object (not null): totals are recomputed and upserted into `derived_metrics` on create and whenever sets change (`PUT` with `sets`, `POST/PUT/DELETE` set routes). Replacing all sets with `[]` yields zeroed metrics. Pure metadata updates (`PUT` without `sets`) leave metrics unchanged.
+
 #### Sync Endpoints
 
 | Method | Path | Description | Auth |
