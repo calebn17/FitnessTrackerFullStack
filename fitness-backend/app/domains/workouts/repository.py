@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.core.repository import BaseRepository
@@ -60,6 +60,8 @@ class WorkoutRepository(BaseRepository):
             workout_type=workout_type,
             notes=notes,
             client_id=client_id,
+            # Keep write-side timestamps on the same clock as sync/list `since` values.
+            created_at=datetime.now(UTC),
         )
         if exercise_sets is not None:
             workout.exercise_sets.extend(exercise_sets)
@@ -137,6 +139,59 @@ class WorkoutRepository(BaseRepository):
         )
         offset = (params.page - 1) * params.per_page
         stmt = stmt.offset(offset).limit(params.per_page)
+        if load_children:
+            stmt = stmt.options(
+                selectinload(Workout.exercise_sets),
+                selectinload(Workout.derived_metrics),
+                selectinload(Workout.insight),
+            )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    async def get_by_client_id_for_user(
+        self,
+        client_id: uuid.UUID,
+        user_id: uuid.UUID,
+        *,
+        load_children: bool = False,
+        include_deleted: bool = False,
+    ) -> Workout | None:
+        """Lookup a workout by stable client_id (offline dedupe key)."""
+        stmt = select(Workout).where(
+            Workout.client_id == client_id,
+            Workout.user_id == user_id,
+        )
+        if not include_deleted:
+            stmt = stmt.where(self._not_deleted())
+        if load_children:
+            stmt = stmt.options(
+                selectinload(Workout.exercise_sets),
+                selectinload(Workout.derived_metrics),
+                selectinload(Workout.insight),
+            )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_changed_since_for_user(
+        self,
+        user_id: uuid.UUID,
+        since: datetime,
+        *,
+        load_children: bool = True,
+    ) -> list[Workout]:
+        """Rows touched after ``since`` (create, update, or soft-delete timestamp)."""
+        stmt = (
+            select(Workout)
+            .where(
+                Workout.user_id == user_id,
+                or_(
+                    Workout.created_at > since,
+                    and_(Workout.updated_at.isnot(None), Workout.updated_at > since),
+                    and_(Workout.deleted_at.isnot(None), Workout.deleted_at > since),
+                ),
+            )
+            .order_by(Workout.created_at.asc())
+        )
         if load_children:
             stmt = stmt.options(
                 selectinload(Workout.exercise_sets),

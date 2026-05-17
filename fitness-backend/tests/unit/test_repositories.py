@@ -135,6 +135,63 @@ async def test_workout_repository_list_count_and_soft_delete(db_session) -> None
 
 
 @pytest.mark.asyncio
+async def test_workout_repository_get_by_client_id(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="sub-cid", email="cid@example.com")
+    workouts = WorkoutRepository(db_session)
+    cid = uuid.uuid4()
+    await workouts.create_workout(
+        user_id=user.id,
+        workout_date=date(2026, 5, 1),
+        workout_type="strength",
+        client_id=cid,
+        exercise_sets=[ExerciseSet(exercise_name="Squat", set_number=1, reps=5, weight=100.0)],
+    )
+    await db_session.commit()
+
+    found = await workouts.get_by_client_id_for_user(cid, user.id, load_children=True)
+    assert found is not None
+    assert found.client_id == cid
+    assert len(found.exercise_sets) == 1
+
+    assert await workouts.get_by_client_id_for_user(uuid.uuid4(), user.id) is None
+
+
+@pytest.mark.asyncio
+async def test_workout_repository_list_changed_since(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="sub-since", email="since@example.com")
+    workouts = WorkoutRepository(db_session)
+    t0 = datetime.now(UTC)
+    w = await workouts.create_workout(
+        user_id=user.id,
+        workout_date=date(2026, 5, 1),
+        workout_type="strength",
+    )
+    await db_session.commit()
+
+    changed_early = await workouts.list_changed_since_for_user(user.id, t0)
+    assert any(row.id == w.id for row in changed_early)
+
+    since_future = datetime(2099, 1, 1, tzinfo=UTC)
+    assert not await workouts.list_changed_since_for_user(user.id, since_future)
+
+    since_before_update = datetime.now(UTC)
+    await workouts.touch_workout_updated(w, when=datetime.now(UTC))
+    await db_session.commit()
+
+    after_touch = await workouts.list_changed_since_for_user(user.id, since_before_update)
+    assert any(row.id == w.id for row in after_touch)
+
+    since_before_delete = datetime.now(UTC)
+    await workouts.soft_delete_workout(w, when=datetime.now(UTC))
+    await db_session.commit()
+
+    after_delete = await workouts.list_changed_since_for_user(user.id, since_before_delete)
+    assert any(row.id == w.id and row.deleted_at is not None for row in after_delete)
+
+
+@pytest.mark.asyncio
 async def test_workout_repository_refresh_derived_metrics_upserts_one_row(db_session) -> None:
     users = UserRepository(db_session)
     user = await users.create(supabase_id="sub-metrics", email="metrics@example.com")

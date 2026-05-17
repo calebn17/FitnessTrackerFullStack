@@ -21,7 +21,7 @@ async def _get_me_user(
         user = await UserService(session).get_or_create_from_supabase(claims)
     except ValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"code": "invalid_user_claims", "errors": exc.errors()},
         ) from exc
     return UserRead.model_validate(user)
