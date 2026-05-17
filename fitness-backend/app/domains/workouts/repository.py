@@ -1,17 +1,40 @@
 """Workout persistence."""
 
-import uuid
-from datetime import date
+from __future__ import annotations
 
-from sqlalchemy import select
+import uuid
+from datetime import date, datetime
+from typing import Any
+
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.repository import BaseRepository
 from app.domains.workouts.models import DerivedMetrics, ExerciseSet, Workout
+from app.domains.workouts.schemas import WorkoutListParams
 
 
 class WorkoutRepository(BaseRepository):
     """Data access for workouts and nested rows."""
+
+    def _not_deleted(self) -> Any:
+        return Workout.deleted_at.is_(None)
+
+    def _apply_list_filters(
+        self,
+        stmt: Select[Any],
+        *,
+        user_id: uuid.UUID,
+        params: WorkoutListParams,
+    ) -> Select[Any]:
+        stmt = stmt.where(Workout.user_id == user_id, self._not_deleted())
+        if params.workout_type is not None:
+            stmt = stmt.where(Workout.workout_type == params.workout_type)
+        if params.date_from is not None:
+            stmt = stmt.where(Workout.date >= params.date_from)
+        if params.date_to is not None:
+            stmt = stmt.where(Workout.date <= params.date_to)
+        return stmt
 
     async def create_workout(
         self,
@@ -45,17 +68,83 @@ class WorkoutRepository(BaseRepository):
         user_id: uuid.UUID,
         *,
         load_children: bool = False,
+        include_deleted: bool = False,
     ) -> Workout | None:
         stmt = select(Workout).where(
             Workout.id == workout_id,
             Workout.user_id == user_id,
         )
+        if not include_deleted:
+            stmt = stmt.where(self._not_deleted())
         if load_children:
             stmt = stmt.options(
                 selectinload(Workout.exercise_sets),
                 selectinload(Workout.derived_metrics),
                 selectinload(Workout.insight),
             )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def count_for_user(self, user_id: uuid.UUID, params: WorkoutListParams) -> int:
+        stmt = select(func.count()).select_from(Workout)
+        stmt = self._apply_list_filters(stmt, user_id=user_id, params=params)
+        result = await self.session.execute(stmt)
+        return int(result.scalar_one())
+
+    async def list_for_user(
+        self,
+        user_id: uuid.UUID,
+        params: WorkoutListParams,
+        *,
+        load_children: bool = False,
+    ) -> list[Workout]:
+        stmt = select(Workout)
+        stmt = self._apply_list_filters(stmt, user_id=user_id, params=params)
+        order_col = Workout.date if params.order_by == "date" else Workout.created_at
+        stmt = stmt.order_by(
+            order_col.asc() if params.order_dir == "asc" else order_col.desc(),
+        )
+        offset = (params.page - 1) * params.per_page
+        stmt = stmt.offset(offset).limit(params.per_page)
+        if load_children:
+            stmt = stmt.options(
+                selectinload(Workout.exercise_sets),
+                selectinload(Workout.derived_metrics),
+                selectinload(Workout.insight),
+            )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    async def soft_delete_workout(self, workout: Workout, *, when: datetime) -> None:
+        workout.deleted_at = when
+        workout.updated_at = when
+        await self.session.flush()
+
+    async def touch_workout_updated(self, workout: Workout, *, when: datetime) -> None:
+        workout.updated_at = when
+        await self.session.flush()
+
+    async def replace_exercise_sets(self, workout: Workout, sets: list[ExerciseSet]) -> None:
+        workout.exercise_sets.clear()
+        workout.exercise_sets.extend(sets)
+        await self.session.flush()
+
+    async def get_exercise_set_for_user(
+        self,
+        workout_id: uuid.UUID,
+        set_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> ExerciseSet | None:
+        stmt = (
+            select(ExerciseSet)
+            .join(Workout, ExerciseSet.workout_id == Workout.id)
+            .where(
+                ExerciseSet.id == set_id,
+                ExerciseSet.workout_id == workout_id,
+                Workout.user_id == user_id,
+                self._not_deleted(),
+            )
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
