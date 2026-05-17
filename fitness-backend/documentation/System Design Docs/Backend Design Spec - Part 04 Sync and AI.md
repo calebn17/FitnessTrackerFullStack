@@ -6,107 +6,29 @@ created: 2026-04-25
 status: draft
 ---
 
-# Part 4 — Sync protocol and AI pipeline (illustrative)
+# Part 4 — Sync protocol and AI pipeline
 
 **Parent:** [Backend Design Spec (index)](Backend%20Design%20Spec.md)
 
-**In this part:** [§6 Sync protocol](#6-sync-protocol-illustrative-planned) · [§7 AI pipeline](#7-ai-pipeline-fast-follow-illustrative)
+**In this part:** [§6 Sync protocol](#6-sync-protocol) · [§7 AI pipeline](#7-ai-pipeline-fast-follow-illustrative)
 
 ---
 
-## 6. Sync Protocol (illustrative, planned)
+## 6. Sync Protocol
 
-### 6.1 Sync Request Format
+**Shipped (Phase 6):** `app/domains/sync/` (`schemas.py`, `service.py`, `router.py`) exposes JWT-protected `POST /api/v1/sync` and `GET /api/v1/sync/status`. **v1** syncs the **workout aggregate** only (`entity: workout`). Payload `data` matches `WorkoutCreate` for `create` (and for `update` when no local row exists yet) and `WorkoutUpdate` for `update` on an existing row. Nested **exercise sets** do not have their own sync entity; they are replaced via the workout payload. `WorkoutRepository` adds `get_by_client_id_for_user` and `list_changed_since_for_user`.
 
-```python
-# app/domains/sync/schemas.py
-from enum import Enum
+**Ordering and LWW:** Changes run **in order**. Duplicate `create` with the same `client_id` is **idempotent** (listed in `applied`, no second insert). For `update` and `delete`, the server wins when `workouts.updated_at` if set, else `workouts.created_at`, is **strictly after** `client_timestamp`; the API returns `SyncConflict` with `resolution: "server_wins"` and a JSON snapshot aligned with `WorkoutRead`. Soft deletes set `deleted_at`. When `last_sync_at` is set, `server_changes` lists rows touched after that time (create, update, or delete).
 
-class OperationType(str, Enum):
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
+### 6.1 Reference sketch (conceptual)
 
-class EntityType(str, Enum):
-    WORKOUT = "workout"
-    EXERCISE_SET = "exercise_set"
-
-class SyncChange(BaseModel):
-    operation: OperationType
-    entity: EntityType
-    client_id: UUID  # Client-side UUID
-    client_timestamp: datetime
-    data: dict  # Entity data for create/update, empty for delete
-
-class SyncRequest(BaseModel):
-    last_sync_at: datetime | None  # None for first sync
-    changes: list[SyncChange]
-
-class SyncResponse(BaseModel):
-    sync_timestamp: datetime  # Use this as next last_sync_at
-    applied: list[UUID]  # client_ids that were successfully applied
-    conflicts: list[SyncConflict]  # Changes that had conflicts
-    server_changes: list[ServerChange]  # Changes from server since last_sync_at
+```text
+# Exact types: app/domains/sync/schemas.py (OperationType / EntityType are StrEnum).
+SyncRequest { last_sync_at?, changes: [SyncChange] }
+SyncChange { operation, entity, client_id, client_timestamp, data }
+SyncResponse { sync_timestamp, applied, conflicts, server_changes }
 ```
 
-### 6.2 Conflict Resolution
-
-```python
-# app/domains/sync/service.py
-class SyncService:
-    async def process_sync(
-        self,
-        user_id: UUID,
-        request: SyncRequest,
-        db: AsyncSession
-    ) -> SyncResponse:
-        applied = []
-        conflicts = []
-        
-        for change in request.changes:
-            # Check for existing entity by client_id
-            existing = await self._get_by_client_id(change.entity, change.client_id, db)
-            
-            if change.operation == OperationType.CREATE:
-                if existing:
-                    # Already exists — deduplicate (no-op or conflict)
-                    if existing.updated_at > change.client_timestamp:
-                        conflicts.append(SyncConflict(
-                            client_id=change.client_id,
-                            server_version=self._serialize(existing),
-                            resolution="server_wins"
-                        ))
-                    else:
-                        applied.append(change.client_id)  # Already synced
-                else:
-                    await self._create(change, user_id, db)
-                    applied.append(change.client_id)
-                    
-            elif change.operation == OperationType.UPDATE:
-                if existing and existing.updated_at > change.client_timestamp:
-                    conflicts.append(...)
-                else:
-                    await self._update(change, db)
-                    applied.append(change.client_id)
-                    
-            elif change.operation == OperationType.DELETE:
-                await self._soft_delete(change, db)
-                applied.append(change.client_id)
-        
-        # Fetch server changes since last sync
-        server_changes = await self._get_changes_since(
-            user_id, request.last_sync_at, db
-        )
-        
-        return SyncResponse(
-            sync_timestamp=datetime.now(UTC),
-            applied=applied,
-            conflicts=conflicts,
-            server_changes=server_changes
-        )
-```
-
----
 
 ## 7. AI Pipeline (Fast Follow, illustrative)
 
