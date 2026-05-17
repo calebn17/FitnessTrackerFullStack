@@ -10,8 +10,15 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.repository import BaseRepository
+from app.domains.workouts.metrics import (
+    apply_values_to_derived_metrics,
+    calculate_derived_metrics_values,
+)
 from app.domains.workouts.models import DerivedMetrics, ExerciseSet, Workout
 from app.domains.workouts.schemas import WorkoutListParams
+
+_UNLOADED_DERIVED_METRICS: object = object()
+_UNLOADED_EXERCISE_SETS: object = object()
 
 
 class WorkoutRepository(BaseRepository):
@@ -54,13 +61,37 @@ class WorkoutRepository(BaseRepository):
             notes=notes,
             client_id=client_id,
         )
-        if exercise_sets:
+        if exercise_sets is not None:
             workout.exercise_sets.extend(exercise_sets)
         if derived_metrics is not None:
             workout.derived_metrics = derived_metrics
         self.session.add(workout)
         await self.session.flush()
         return workout
+
+    async def refresh_derived_metrics(self, workout: Workout) -> DerivedMetrics:
+        """Recompute and upsert the one-to-one derived_metrics row for this workout."""
+        raw_sets = workout.__dict__.get("exercise_sets", _UNLOADED_EXERCISE_SETS)
+        raw_dm = workout.__dict__.get("derived_metrics", _UNLOADED_DERIVED_METRICS)
+        if raw_sets is _UNLOADED_EXERCISE_SETS or raw_dm is _UNLOADED_DERIVED_METRICS:
+            await self.session.refresh(
+                workout,
+                attribute_names=["exercise_sets", "derived_metrics"],
+            )
+            raw_sets = workout.__dict__.get("exercise_sets", _UNLOADED_EXERCISE_SETS)
+            raw_dm = workout.__dict__.get("derived_metrics", _UNLOADED_DERIVED_METRICS)
+        sets_for_calc: list[ExerciseSet] = (
+            [] if raw_sets is _UNLOADED_EXERCISE_SETS else list(raw_sets)
+        )
+        values = calculate_derived_metrics_values(sets_for_calc)
+        if raw_dm is _UNLOADED_DERIVED_METRICS or raw_dm is None:
+            metrics_row = DerivedMetrics()
+            workout.derived_metrics = metrics_row
+        else:
+            metrics_row = raw_dm
+        apply_values_to_derived_metrics(metrics_row, values)
+        await self.session.flush()
+        return metrics_row
 
     async def get_by_id_for_user(
         self,
