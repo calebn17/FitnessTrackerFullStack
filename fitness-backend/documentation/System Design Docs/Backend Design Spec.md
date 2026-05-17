@@ -26,7 +26,7 @@ status: draft
 | Orientation, stack choices, repo tree, domain layering | [Part 1 — Overview, structure, domains](Backend%20Design%20Spec%20-%20Part%2001%20Overview%20Structure%20Domains.md) |
 | Models, engine/session, migrations | [Part 2 — Database](Backend%20Design%20Spec%20-%20Part%2002%20Database.md) |
 | Routers, endpoint tables, request/response sketches | [Part 3 — API](Backend%20Design%20Spec%20-%20Part%2003%20API.md) |
-| Offline sync and AI (mostly illustrative / planned) | [Part 4 — Sync and AI](Backend%20Design%20Spec%20-%20Part%2004%20Sync%20and%20AI.md) |
+| Offline sync (Phase 6 shipped) and AI (illustrative) | [Part 4 — Sync and AI](Backend%20Design%20Spec%20-%20Part%2004%20Sync%20and%20AI.md) |
 | Auth, settings, errors, tests, metrics, deploy | [Part 5 — Operations](Backend%20Design%20Spec%20-%20Part%2005%20Operations.md) |
 
 **Source of truth:** shipped behavior is always `fitness-backend/app/`, `alembic/`, and `tests/`, plus runbooks [`README.md`](../../README.md) and [`documentation/CLAUDE.md`](../CLAUDE.md). Large code blocks in Parts 4–5 are often **architecture sketches** for later phases, not guaranteed to match the repo line-for-line.

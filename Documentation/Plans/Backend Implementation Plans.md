@@ -427,27 +427,27 @@ EXERCISE_MUSCLE_MAP = {
 
 ### Tasks
 
-- [ ] **6.1 Sync Schemas**
+- [x] **6.1 Sync Schemas**
   - Create `app/domains/sync/schemas.py`
   - `SyncChange`, `SyncRequest`, `SyncResponse`
   - `SyncConflict`, `ServerChange`
 
-- [ ] **6.2 Sync Service**
+- [x] **6.2 Sync Service**
   - Create `app/domains/sync/service.py`
   - Process each change in order
   - Detect conflicts (server timestamp > client timestamp)
   - Apply creates, updates, deletes
   - Fetch server changes since `last_sync_at`
 
-- [ ] **6.3 Deduplication**
+- [x] **6.3 Deduplication**
   - Use `client_id` to detect duplicate creates
   - If workout with `client_id` exists, skip or merge
 
-- [ ] **6.4 Sync Router**
+- [x] **6.4 Sync Router**
   - `POST /api/v1/sync` — process sync request
   - `GET /api/v1/sync/status` — return last sync timestamp
 
-- [ ] **6.5 Integration Tests**
+- [x] **6.5 Integration Tests**
   - Test create sync
   - Test update sync with no conflict
   - Test update sync with conflict (server wins)

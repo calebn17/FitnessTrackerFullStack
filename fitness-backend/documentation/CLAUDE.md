@@ -53,6 +53,7 @@ Single test file (after activating `.venv` or with deps on `PATH`):
 PYTHONPATH=. pytest tests/unit/test_repositories.py
 PYTHONPATH=. pytest tests/integration/test_users_router.py
 PYTHONPATH=. pytest tests/integration/test_workouts_router.py
+PYTHONPATH=. pytest tests/integration/test_sync_router.py
 ```
 
 Single test by name:
@@ -111,11 +112,11 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 5 (derived metrics)** on top of Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 6 (workout sync)** on top of Phase 5 derived metrics, Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app(); /health; includes users + workouts routers under api_v1_prefix
+├── main.py              # create_app(); /health; includes users + workouts + sync routers under api_v1_prefix
 ├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
 ├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
@@ -125,6 +126,7 @@ app/
 └── domains/
     ├── users/           # User (supabase_id, email); service sync; GET /users/me
     ├── workouts/        # Workout CRUD, exercise sets; JWT-scoped /workouts routes
+    ├── sync/            # Phase 6 batch sync: POST/GET /sync (+ /sync/status)
     └── ai/              # Insight (pending → completed AI output)
 ```
 

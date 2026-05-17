@@ -233,9 +233,12 @@ A monolith with clear domain boundaries, designed to split into services if need
 | `PUT` | `/api/v1/workouts/{id}/sets/{set_id}` | Update set |
 | `DELETE` | `/api/v1/workouts/{id}/sets/{set_id}` | Delete set (hard delete row) |
 | `GET` | `/api/v1/workouts/{id}/insights` | Get AI insights for workout |
-| `POST` | `/api/v1/sync` | Batch sync endpoint for offline changes |
+| `POST` | `/api/v1/sync` | Batch sync for offline clients (workout aggregate); returns `applied`, `conflicts`, `server_changes` |
+| `GET` | `/api/v1/sync/status` | Server UTC cursor for `last_sync_at` on the next sync |
 
 **Derived metrics:** `total_volume` is the sum of `weight * reps` over sets with non-null weight; null weight counts as 0 volume. Metadata-only `PUT` (e.g. notes) does not recompute metrics. Unknown exercises contribute no `muscle_groups` entries.
+
+**Sync (Phase 6):** `POST /api/v1/sync` accepts `last_sync_at` (optional; when set, response includes `server_changes` for rows touched after that time) and ordered `changes` with `operation` `create` | `update` | `delete`, `entity` `workout`, `client_id`, `client_timestamp`, and `data` (same shapes as workout create/update APIs). Duplicate `create` for an existing `client_id` is idempotent. Last-write-wins on conflict: if server `updated_at` (or `created_at` if never updated) is after `client_timestamp`, the change is rejected and a `server_wins` conflict with the current snapshot is returned. `GET /api/v1/sync/status` returns `{ "last_sync_at": "<ISO UTC>" }` as a suggested cursor.
 
 ### Request/Response Patterns
 

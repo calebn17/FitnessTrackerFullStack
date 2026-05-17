@@ -23,6 +23,7 @@ status: draft
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.domains.sync.router import router as sync_router
 from app.domains.users.router import router as users_router
 from app.domains.workouts.router import router as workouts_router
 
@@ -31,10 +32,11 @@ def create_app() -> FastAPI:
     application = FastAPI(title=settings.app_name, debug=settings.debug)  # lifespan + /health in repo
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(workouts_router, prefix=settings.api_v1_prefix)
+    application.include_router(sync_router, prefix=settings.api_v1_prefix)
     return application
 ```
 
-Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). The `workouts` router is registered for Phase 4 CRUD; `sync` and `ai` routers remain planned/future wiring in `create_app`.
+Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). The `workouts` router is registered for Phase 4 CRUD; the `sync` router is registered for Phase 6 batch sync; `ai` remains aligned with the insight model / future routes in `create_app`.
 
 ### 5.2 Endpoint Specifications
 
@@ -77,12 +79,14 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 
 **Derived metrics (Phase 5)** — Every `WorkoutRead` includes a `metrics` object (not null): totals are recomputed and upserted into `derived_metrics` on create and whenever sets change (`PUT` with `sets`, `POST/PUT/DELETE` set routes). Replacing all sets with `[]` yields zeroed metrics. Pure metadata updates (`PUT` without `sets`) leave metrics unchanged.
 
-#### Sync Endpoints
+#### Sync Endpoints (Phase 6)
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| `POST` | `/api/v1/sync` | Batch sync changes | Required |
-| `GET` | `/api/v1/sync/status` | Get sync status/last sync time | Required |
+| `POST` | `/api/v1/sync` | Apply batched offline changes (`entity`: `workout` only in v1); body: optional `last_sync_at`, ordered `changes`; response: `sync_timestamp`, `applied` (`client_id`s), `conflicts` (`server_wins` + snapshot), `server_changes` (non-empty when `last_sync_at` set) | Required |
+| `GET` | `/api/v1/sync/status` | JSON `SyncStatusResponse`: `last_sync_at` server UTC cursor for the next poll | Required |
+
+**Semantics:** Duplicate `create` with the same `workout.client_id` is idempotent. `update` / `delete` use last-write-wins against server `updated_at`, falling back to `created_at` when `updated_at` is null. `update` with an unknown `client_id` upserts using `WorkoutCreate`-shaped `data`. Soft deletes set `workouts.deleted_at`. `server_changes` entries use `CREATE` / `UPDATE` / `DELETE` with `data` shaped like `WorkoutRead` or a small tombstone for deletes.
 
 #### AI Insights Endpoints
 
