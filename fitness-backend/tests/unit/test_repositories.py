@@ -135,6 +135,81 @@ async def test_workout_repository_list_count_and_soft_delete(db_session) -> None
 
 
 @pytest.mark.asyncio
+async def test_workout_repository_refresh_derived_metrics_upserts_one_row(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="sub-metrics", email="metrics@example.com")
+    workouts = WorkoutRepository(db_session)
+    es = ExerciseSet(exercise_name="Squat", set_number=1, reps=5, weight=200.0)
+    workout = await workouts.create_workout(
+        user_id=user.id,
+        workout_date=date(2026, 5, 1),
+        workout_type="strength",
+        exercise_sets=[es],
+    )
+    await db_session.commit()
+
+    loaded = await workouts.get_by_id_for_user(workout.id, user.id, load_children=True)
+    assert loaded is not None
+    m1 = await workouts.refresh_derived_metrics(loaded)
+    first_id = m1.id
+    await db_session.commit()
+
+    loaded2 = await workouts.get_by_id_for_user(workout.id, user.id, load_children=True)
+    assert loaded2 is not None
+    # Add a set in memory like service would after reload
+    loaded2.exercise_sets.append(
+        ExerciseSet(
+            exercise_name="Squat",
+            set_number=2,
+            reps=3,
+            weight=250.0,
+        ),
+    )
+    m2 = await workouts.refresh_derived_metrics(loaded2)
+    assert m2.id == first_id
+    assert m2.total_sets == 2
+    assert m2.total_reps == 8
+    assert m2.total_volume == 5 * 200.0 + 3 * 250.0
+    await db_session.commit()
+
+    loaded3 = await workouts.get_by_id_for_user(workout.id, user.id, load_children=True)
+    assert loaded3 is not None
+    assert loaded3.derived_metrics is not None
+    assert loaded3.derived_metrics.id == first_id
+
+
+@pytest.mark.asyncio
+async def test_workout_repository_refresh_derived_metrics_loads_unloaded_relationships(
+    db_session,
+) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(
+        supabase_id="sub-metrics-unloaded",
+        email="metrics-unloaded@example.com",
+    )
+    workouts = WorkoutRepository(db_session)
+    workout = await workouts.create_workout(
+        user_id=user.id,
+        workout_date=date(2026, 5, 2),
+        workout_type="strength",
+        exercise_sets=[ExerciseSet(exercise_name="Deadlift", set_number=1, reps=5, weight=300.0)],
+    )
+    await workouts.refresh_derived_metrics(workout)
+    await db_session.commit()
+    db_session.expunge_all()
+
+    shallow = await workouts.get_by_id_for_user(workout.id, user.id, load_children=False)
+    assert shallow is not None
+    assert "exercise_sets" not in shallow.__dict__
+    assert "derived_metrics" not in shallow.__dict__
+
+    refreshed = await workouts.refresh_derived_metrics(shallow)
+    assert refreshed.total_sets == 1
+    assert refreshed.total_reps == 5
+    assert refreshed.total_volume == 5 * 300.0
+
+
+@pytest.mark.asyncio
 async def test_workout_repository_get_exercise_set_for_user(db_session) -> None:
     users = UserRepository(db_session)
     user = await users.create(supabase_id="sub-set", email="set@example.com")

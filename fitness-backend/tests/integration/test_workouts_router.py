@@ -11,12 +11,17 @@ from datetime import date
 import jwt
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 from app.config import Settings, get_settings
+from app.core.database import get_session_factory
 from app.dependencies import get_db_session
 from app.domains.ai import models as _ai_models  # noqa: F401
+from app.domains.users.models import User
 from app.domains.workouts import models as _workout_models  # noqa: F401
+from app.domains.workouts.models import DerivedMetrics, Workout
 from app.main import create_app
 
 _SECRET = "integration-test-jwt-secret-32bytes-min"
@@ -102,10 +107,19 @@ async def test_workouts_crud_and_sets(client: TestClient) -> None:
     wid = c.json()["id"]
     assert c.json()["client_id"] == cid
     assert len(c.json()["sets"]) == 1
+    m0 = c.json()["metrics"]
+    assert m0 is not None
+    assert m0["total_volume"] == 5 * 225
+    assert m0["total_sets"] == 1
+    assert m0["total_reps"] == 5
+    assert m0["avg_rpe"] is None
+    assert m0["exercise_count"] == 1
+    assert set(m0["muscle_groups"] or []) == {"quadriceps", "glutes", "hamstrings"}
 
     g = client.get(f"/api/v1/workouts/{wid}", headers=headers)
     assert g.status_code == 200
     assert g.json()["id"] == wid
+    assert g.json()["metrics"]["total_volume"] == 5 * 225
 
     add = client.post(
         f"/api/v1/workouts/{wid}/sets",
@@ -119,6 +133,10 @@ async def test_workouts_crud_and_sets(client: TestClient) -> None:
     )
     assert add.status_code == 201, add.text
     sid = add.json()["id"]
+    g2 = client.get(f"/api/v1/workouts/{wid}", headers=headers)
+    assert g2.json()["metrics"]["total_sets"] == 2
+    assert g2.json()["metrics"]["total_reps"] == 8
+    assert g2.json()["metrics"]["total_volume"] == 5 * 225 + 3 * 315
 
     up = client.put(
         f"/api/v1/workouts/{wid}/sets/{sid}",
@@ -127,9 +145,15 @@ async def test_workouts_crud_and_sets(client: TestClient) -> None:
     )
     assert up.status_code == 200
     assert up.json()["reps"] == 2
+    g3 = client.get(f"/api/v1/workouts/{wid}", headers=headers)
+    assert g3.json()["metrics"]["total_volume"] == 5 * 225 + 2 * 315
+    assert g3.json()["metrics"]["total_reps"] == 7
 
     dl = client.delete(f"/api/v1/workouts/{wid}/sets/{sid}", headers=headers)
     assert dl.status_code == 204
+    g4 = client.get(f"/api/v1/workouts/{wid}", headers=headers)
+    assert g4.json()["metrics"]["total_sets"] == 1
+    assert g4.json()["metrics"]["total_volume"] == 5 * 225
 
     upd = client.put(
         f"/api/v1/workouts/{wid}",
@@ -138,6 +162,7 @@ async def test_workouts_crud_and_sets(client: TestClient) -> None:
     )
     assert upd.status_code == 200
     assert upd.json()["notes"] == "updated"
+    assert upd.json()["metrics"]["total_volume"] == 5 * 225
 
     d = client.delete(f"/api/v1/workouts/{wid}", headers=headers)
     assert d.status_code == 204
@@ -145,6 +170,119 @@ async def test_workouts_crud_and_sets(client: TestClient) -> None:
     gone = client.get(f"/api/v1/workouts/{wid}", headers=headers)
     assert gone.status_code == 404
     assert gone.json()["detail"]["code"] == "workout_not_found"
+
+
+@pytest.mark.asyncio
+async def test_workouts_metrics_in_list_and_empty_sets(client: TestClient) -> None:
+    sub = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    token = _encode_claims(sub=sub, email="metrics-list@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    empty = client.post(
+        "/api/v1/workouts",
+        json={
+            "client_id": str(uuid.uuid4()),
+            "date": "2026-09-01",
+            "workout_type": "strength",
+            "sets": [],
+        },
+        headers=headers,
+    )
+    assert empty.status_code == 201, empty.text
+    eid = empty.json()["id"]
+    em = empty.json()["metrics"]
+    assert em is not None
+    assert em["total_volume"] == 0
+    assert em["total_sets"] == 0
+    assert em["total_reps"] == 0
+    assert em["avg_rpe"] is None
+    assert em["exercise_count"] == 0
+    assert em["muscle_groups"] == []
+
+    lst = client.get("/api/v1/workouts?page=1&per_page=50", headers=headers)
+    assert lst.status_code == 200
+    found = next(i for i in lst.json()["items"] if i["id"] == eid)
+    assert found["metrics"]["total_sets"] == 0
+
+    unk = client.post(
+        "/api/v1/workouts",
+        json={
+            "client_id": str(uuid.uuid4()),
+            "date": "2026-09-02",
+            "workout_type": "strength",
+            "sets": [
+                {
+                    "exercise_name": "Mystery Move",
+                    "set_number": 1,
+                    "reps": 10,
+                    "weight": 25,
+                    "rpe": 7,
+                },
+            ],
+        },
+        headers=headers,
+    )
+    assert unk.status_code == 201, unk.text
+    um = unk.json()["metrics"]
+    assert um["total_volume"] == 250.0
+    assert um["muscle_groups"] == []
+    assert um["avg_rpe"] == 7.0
+
+
+@pytest.mark.asyncio
+async def test_workouts_read_paths_backfill_metrics_for_legacy_rows(client: TestClient) -> None:
+    sub = "acacacac-acac-acac-acac-acacacacacac"
+    token = _encode_claims(sub=sub, email="legacy-metrics@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+    cid = str(uuid.uuid4())
+
+    create = client.post(
+        "/api/v1/workouts",
+        json={
+            "client_id": cid,
+            "date": "2026-10-01",
+            "workout_type": "strength",
+            "sets": [
+                {
+                    "exercise_name": "Bench Press",
+                    "set_number": 1,
+                    "reps": 8,
+                    "weight": 135,
+                },
+            ],
+        },
+        headers=headers,
+    )
+    assert create.status_code == 201, create.text
+    workout_id = create.json()["id"]
+
+    factory = get_session_factory()
+    assert factory is not None
+    async with factory() as session:
+        user = (
+            await session.execute(select(User).where(User.supabase_id == sub))
+        ).scalar_one()
+        workout = (
+            await session.execute(
+                select(Workout)
+                .where(Workout.id == workout_id, Workout.user_id == user.id)
+                .options(selectinload(Workout.exercise_sets))
+            )
+        ).scalar_one()
+        await session.execute(delete(DerivedMetrics).where(DerivedMetrics.workout_id == workout.id))
+        await session.commit()
+
+    get_one = client.get(f"/api/v1/workouts/{workout_id}", headers=headers)
+    assert get_one.status_code == 200, get_one.text
+    assert get_one.json()["metrics"] is not None
+    assert get_one.json()["metrics"]["total_volume"] == 8 * 135
+    assert get_one.json()["metrics"]["total_sets"] == 1
+
+    lst = client.get("/api/v1/workouts?page=1&per_page=20", headers=headers)
+    assert lst.status_code == 200
+    found = next(i for i in lst.json()["items"] if i["id"] == workout_id)
+    assert found["metrics"] is not None
+    assert found["metrics"]["total_volume"] == 8 * 135
 
 
 @pytest.mark.asyncio
