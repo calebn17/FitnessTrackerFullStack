@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from app.core.database import dispose_engine, get_session_factory, init_database
 def _default_database_url() -> str:
     return os.environ.get(
         "DATABASE_URL",
-        "postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness",
+        "postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness",
     )
 
 
@@ -27,7 +28,7 @@ def migrated_database() -> None:
     env = {**os.environ, "DATABASE_URL": _default_database_url()}
     try:
         subprocess.run(
-            ["alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=str(backend_root),
             env=env,
             check=True,

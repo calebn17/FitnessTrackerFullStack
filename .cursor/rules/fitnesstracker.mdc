@@ -25,7 +25,7 @@ Boundaries for tool use in this workspace:
 Before **creating a Cursor plan**, **writing multi-step task lists**, or **implementing** changes that touch architecture, APIs, domains, or cross-cutting behavior, **read or skim** authoritative docs for big-picture alignment (do not rely on code search alone for intent and boundaries):
 
 1. **Global system design** — [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) for platform architecture, data flow, API contracts, and product behavior.
-2. **Stack design spec** — For **`fitness-backend/`**, [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
+2. **Stack design spec** — For **`fitness-backend/`**, [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
 3. **CLAUDE.md (constraints and runbooks)** — Prefer the **most local** file for the work: e.g. [`fitness-backend/documentation/CLAUDE.md`](../../fitness-backend/documentation/CLAUDE.md) for backend commands and constraints, then repository root [`CLAUDE.md`](../../CLAUDE.md), then [`.agent-harness/CLAUDE.md`](../../.agent-harness/CLAUDE.md) for harness role and `harness` commands. When both root and stack-local exist, **stack-local wins** for that stack’s commands and rules.
 4. **Phased roadmap (when applicable)** — If the task maps to an implementation phase, skim the relevant section of **`Documentation/Plans/`** (e.g. [Backend Implementation Plans.md](../../Documentation/Plans/Backend%20Implementation%20Plans.md)) so scope, checkpoints, and “done” match the plan.
 
@@ -58,7 +58,7 @@ This complements phase-specific plans (e.g. backend phases in `Documentation/Pla
 
 - **Design for scale.** Prefer patterns that stay sound as usage and domains grow: respect existing layering in **`fitness-backend`** (domain modules vs `app/core`, routers vs services vs repositories), avoid unbounded queries and accidental N+1 or O(n²) paths where lists and aggregations are involved, and use pagination, batching, caching, and indexing in line with how the backend already handles reads and writes. When a shortcut trades clarity or performance for speed, call that out and fix it before it becomes load-bearing.
 
-Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md).
+Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md).
 
 ---
 
@@ -66,7 +66,15 @@ Aligned with [Documentation/Fitness Platform - System Design.md](../../Documenta
 
 - **Security.** Never commit secrets, API keys, or production credentials; keep `.env*`, private keys, and service tokens out of repos, screenshots, and chat. On the **API**, verify identity on every protected route (JWT / Supabase auth per the phased roadmap; local debug paths only where explicitly documented), scope every read/write to the authenticated principal (and by `user_id` when multi-tenancy is in effect), validate and bound inputs at boundaries, and return errors that do not leak stack traces, tokens, or other users’ data. On **clients** (future iOS / web), use TLS to the API, follow the project auth flows once implemented, and avoid logging PII, tokens, or full payloads.
 
-Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md).
+### Environment file access policy
+
+- **Do not read, inspect, print, summarize, or search `.env` files** (including `.env`, `.env.*`, and any secret-bearing env file) unless the user has **EXPLICITLY** requested it in the current conversation.
+- If a task might involve env values, first ask for confirmation instead of opening env files.
+- Prefer `.env.example`, docs, or `config.py` defaults for guidance.
+- Never expose env file contents in chat, logs, diffs, commits, or screenshots.
+- Violation of this rule is a hard stop: the agent must refuse and request explicit user authorization.
+
+Aligned with [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) and [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md).
 
 ---
 
@@ -99,7 +107,7 @@ When you **create or execute a plan** (including `TodoWrite` / task lists in cha
 
 - **Plan creation requirement** — Every newly created plan must include a **final todo item** to update **system design** documentation at the right level:
   - **Global (repository-wide):** [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md) — cross-cutting architecture, data flow, API contracts, and product behavior. If the repo adds a short global index at `Documentation/system_design.md`, keep it consistent with the long-form doc where both exist.
-  - **Per stack (local):** Today the implemented service lives under **`fitness-backend/`**; backend module layout and API boundaries are detailed in [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md). When a stack-specific `documentation/system_design.md` is added under a top-level app folder (e.g. `fitness-backend/documentation/system_design.md`, or a future iOS/web root), update that file for every stack whose architecture or behavior the plan changes.
+  - **Per stack (local):** Today the implemented service lives under **`fitness-backend/`**; backend module layout and API boundaries are detailed in [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md). When a stack-specific `documentation/system_design.md` is added under a top-level app folder (e.g. `fitness-backend/documentation/system_design.md`, or a future iOS/web root), update that file for every stack whose architecture or behavior the plan changes.
 - **Scope of that final todo** — Same facts as **Change communication** (architecture, data-flow, API contract, client behavior), placed in the global doc and in each touched stack’s local design doc so both the whole-system view and stack-specific detail stay current.
 
 This pairs with **Change communication** (what to summarize) and optional checkpoint modes in **Implementation (pair programming)** below.
@@ -116,7 +124,7 @@ When **a plan or implementation slice is finished** (user confirms completion, o
 
 If a **web** (or other Node) package is added and CI introduces **Prettier** or similar, run the same commands CI uses on paths your diff touches (e.g. `npx prettier --write` / `--check` from that package root). **Do not rely on ESLint alone** where Prettier is enforced. Until then, backend formatting is covered by **Ruff** as configured in `fitness-backend`.
 
-1. **Keep runbooks accurate** — After substantive changes, ensure **commands and rules only** stay current where this repo documents them: primarily [`fitness-backend/README.md`](../../fitness-backend/README.md) for backend run/lint/test; [`.agent-harness/CLAUDE.md`](../../.agent-harness/CLAUDE.md) for harness role constraints and `harness` commands. If the project adds a root or subproject **`CLAUDE.md`**, prefer the **local** file for the stack you touched. **Do not** stash long-form system design in those files; use [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md), [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md), and stack-local `documentation/system_design.md` when present.
+1. **Keep runbooks accurate** — After substantive changes, ensure **commands and rules only** stay current where this repo documents them: primarily [`fitness-backend/README.md`](../../fitness-backend/README.md) for backend run/lint/test; [`.agent-harness/CLAUDE.md`](../../.agent-harness/CLAUDE.md) for harness role constraints and `harness` commands. If the project adds a root or subproject **`CLAUDE.md`**, prefer the **local** file for the stack you touched. **Do not** stash long-form system design in those files; use [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md), [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md), and stack-local `documentation/system_design.md` when present.
 
 2. **What to add to runbooks** — Short, durable bullets: new commands, scripts, env vars, how to verify, and pointers to the system design docs when readers need architecture context. Do **not** paste full plans or duplicate specs that belong in system design docs.
 
@@ -171,7 +179,7 @@ If a plan file differs from this rule, **follow the plan** and update this rule 
 ### Related docs
 
 - [Documentation/Fitness Platform - System Design.md](../../Documentation/Fitness%20Platform%20-%20System%20Design.md)
-- [fitness-backend/documentation/Backend Design Spec.md](../../fitness-backend/documentation/Backend%20Design%20Spec.md)
+- [fitness-backend/documentation/System Design Docs/Backend Design Spec.md](../../fitness-backend/documentation/System%20Design%20Docs/Backend%20Design%20Spec.md)
 - [Documentation/Plans/Backend Implementation Plans.md](../../Documentation/Plans/Backend%20Implementation%20Plans.md)
 - [`fitness-backend/README.md`](../../fitness-backend/README.md)
 - [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)

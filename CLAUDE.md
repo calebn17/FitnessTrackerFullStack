@@ -6,13 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Do NOT run `git push`.
 - Do NOT install dependencies (`pip install`, `uv sync`, etc.).
+- Do NOT access `.env` files unless the user **EXPLICITLY** asks in the current chat.
+  - This includes `.env`, `.env.local`, `.env.*`, and similar secret env files.
+  - Use `.env.example` and documented config sources instead when possible.
 
 ## Context before plans and implementation
 
 Before **creating an implementation plan**, **writing multi-step task lists**, or **implementing** changes that touch architecture, APIs, domains, or cross-cutting behavior, **read or skim** the docs below for alignment (do not rely on code alone for intent and boundaries):
 
 1. **Global system design** — `Documentation/Fitness Platform - System Design.md` — platform architecture, data flow, API contracts, and product behavior.
-2. **Stack design spec** — For **`fitness-backend/`**, `fitness-backend/documentation/Backend Design Spec.md`. For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
+2. **Stack design spec** — For **`fitness-backend/`**, `fitness-backend/documentation/System Design Docs/Backend Design Spec.md` (index; short redirect at `fitness-backend/documentation/Backend Design Spec.md`). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
 3. **CLAUDE.md (constraints and runbooks)** — Prefer the **most local** file for the work: `fitness-backend/documentation/CLAUDE.md` for backend commands and operational detail, then repository root `CLAUDE.md` (this file), then `.agent-harness/CLAUDE.md` for harness role and `harness` commands. **Stack-local wins** for that stack’s commands and rules when both exist.
 4. **Phased roadmap (when applicable)** — If the task maps to a roadmap slice, skim the relevant section of `Documentation/Plans/` (e.g. `Documentation/Plans/Backend Implementation Plans.md`).
 
@@ -93,5 +96,5 @@ Always pass these three before considering work complete.
 ## Documentation
 
 - `Documentation/Fitness Platform - System Design.md` — Full system architecture
-- `fitness-backend/documentation/Backend Design Spec.md` — Backend module design
+- `fitness-backend/documentation/System Design Docs/Backend Design Spec.md` — Backend design spec (index + parts)
 - `Documentation/Plans/Backend Implementation Plans.md` — Phased implementation roadmap

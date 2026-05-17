@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Before **creating an implementation plan**, **writing multi-step task lists**, or **implementing** changes that touch architecture, APIs, domains, or cross-cutting behavior, **read or skim** the docs below for alignment (do not rely on code alone for intent and boundaries):
 
 1. **Global system design** — `Documentation/Fitness Platform - System Design.md` (repository root) — platform architecture, data flow, API contracts, and product behavior.
-2. **Backend design spec** — [`documentation/Backend Design Spec.md`](documentation/Backend%20Design%20Spec.md) — module layout and API boundaries. For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
+2. **Backend design spec** — [`documentation/System Design Docs/Backend Design Spec.md`](System%20Design%20Docs/Backend%20Design%20Spec.md) — module layout and API boundaries (index + parts). Short redirect: [`documentation/Backend Design Spec.md`](Backend%20Design%20Spec.md). For other stacks (future clients), read that stack’s design spec or `documentation/system_design.md` when present.
 3. **CLAUDE.md (constraints and runbooks)** — Prefer **this file** for backend commands, venv, Postgres, and tests; then repository root `CLAUDE.md` for the short repo-wide summary; then `.agent-harness/CLAUDE.md` for harness role and `harness` commands. **Stack-local wins** for this stack when both exist.
 4. **Phased roadmap (when applicable)** — Skim the relevant section of `Documentation/Plans/` (e.g. `Documentation/Plans/Backend Implementation Plans.md`).
 
@@ -51,6 +51,7 @@ Single test file (after activating `.venv` or with deps on `PATH`):
 
 ```bash
 PYTHONPATH=. pytest tests/unit/test_repositories.py
+PYTHONPATH=. pytest tests/integration/test_users_router.py
 ```
 
 Single test by name:
@@ -101,26 +102,27 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 | Password | `fitness` |
 | Database | `fitness` |
 | Host (from host machine) | `127.0.0.1` |
-| Port | `5432` |
+| Port | `5433` |
 
-**App / Alembic URL** — `DATABASE_URL`; default async DSN: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness`.
+**App / Alembic URL** — `DATABASE_URL`; default async DSN: `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness`.
 
-**Port 5432 already in use** — Stop the other Postgres instance or change the host port mapping for the `postgres` service in `docker-compose.yml`.
+**Why port 5433?** — This backend maps host `5433` to container `5432` (`5433:5432`) so it can run alongside other local apps already using host `5432`.
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 2 (Database & Models)**.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 3 (Supabase JWT + `/api/v1/users/me`)** on top of Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app() factory; /health endpoint
-├── config.py            # Pydantic Settings (DATABASE_URL, DEBUG, etc.)
-├── dependencies.py      # FastAPI DI (get_db_session)
+├── main.py              # create_app(); /health; includes users router under api_v1_prefix
+├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
+├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
 │   ├── database.py      # Async SQLAlchemy engine/session singletons; Base declarative class
-│   └── repository.py    # BaseRepository(session) — base class for all repositories
+│   ├── repository.py    # BaseRepository(session) — base class for all repositories
+│   └── security.py      # JWT decode + get_supabase_jwt_claims (Bearer → claims or 401)
 └── domains/
-    ├── users/           # User (supabase_id, email)
+    ├── users/           # User (supabase_id, email); service sync; GET /users/me
     ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
     └── ai/              # Insight (pending → completed AI output)
 ```
@@ -141,7 +143,9 @@ Each domain follows: `models.py` → `schemas.py` → `repository.py` → `servi
 
 **Migrations** live in `alembic/versions/` named `phase2_0N_*.py`. Apply with `make migrate` (see **PostgreSQL (local Docker)**).
 
-**Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5432/fitness` in tests.
+**Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness` in tests.
+
+**Supabase auth (Phase 3)** — set `SUPABASE_JWT_SECRET` (required for real JWT validation on protected routes). Optional: `SUPABASE_JWT_AUDIENCE` (defaults to `authenticated`), `SUPABASE_URL` (reserved). Pydantic Settings reads these from the environment / `.env`.
 
 ## Repository Pattern
 
@@ -175,7 +179,7 @@ Tests skip automatically (not fail) if Postgres is unreachable.
 
 ## Documentation
 
-- [`documentation/Backend Design Spec.md`](documentation/Backend%20Design%20Spec.md) — Backend module layout and API boundaries
+- [`documentation/System Design Docs/Backend Design Spec.md`](System%20Design%20Docs/Backend%20Design%20Spec.md) — Backend module layout (index + parts)
 - Repository-wide architecture: `Documentation/Fitness Platform - System Design.md` (repo root)
 
 ## CI

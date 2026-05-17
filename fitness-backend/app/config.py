@@ -1,5 +1,7 @@
 """Application settings loaded from environment variables."""
 
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,12 +19,18 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     # Database (used in later phases)
-    database_url: str = "postgresql+asyncpg://fitness:fitness@localhost:5432/fitness"
+    database_url: str = "postgresql+asyncpg://fitness:fitness@localhost:5433/fitness"
 
     # Redis (used in later phases)
     redis_url: str = "redis://localhost:6379/0"
 
+    # Supabase auth (Phase 3 JWT validation)
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    supabase_jwt_audience: str = "authenticated"
 
+
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return settings instance (suitable for FastAPI Depends caching)."""
     return Settings()

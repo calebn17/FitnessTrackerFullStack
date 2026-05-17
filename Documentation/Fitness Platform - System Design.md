@@ -223,6 +223,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 |--------|----------|-------------|
 | `POST` | `/api/v1/auth/register` | User registration |
 | `POST` | `/api/v1/auth/login` | User login, returns JWT |
+| `GET` | `/api/v1/users/me` | Current user profile (Bearer Supabase access JWT); creates local `users` row on first success |
 | `GET` | `/api/v1/workouts` | List workouts (paginated) |
 | `POST` | `/api/v1/workouts` | Create workout |
 | `GET` | `/api/v1/workouts/{id}` | Get workout details with sets |
@@ -400,7 +401,8 @@ A monolith with clear domain boundaries, designed to split into services if need
 - **Auth Provider:** Supabase Auth
 - **Methods:** Apple Sign-In, Google, email/password
 - **Token Storage:** iOS Keychain / Web secure storage
-- **API Security:** All endpoints validate Supabase JWT (except public routes)
+- **API Security:** Protected routes expect `Authorization: Bearer <access_token>` (Supabase-issued HS256 JWT with `sub`, `exp`, and `aud`). The backend validates the signature and audience, then maps `sub` (+ `email` claim) to a local `users` row and syncs the stored email when it changes in Supabase. **Public routes today:** `GET /health` only; `/api/v1/users/me` requires a valid token. Misconfigured or bad tokens return **401** with a stable JSON `detail.code` (for example `token_expired`, `token_invalid_signature`, `missing_authorization`). Missing or invalid user claims after decode return **422** with `invalid_user_claims` on `GET /api/v1/users/me`.
+- **Backend auth configuration:** `SUPABASE_JWT_SECRET` (JWT signing secret from the Supabase project), optional `SUPABASE_JWT_AUDIENCE` (default `authenticated`), and optional `SUPABASE_URL` (reserved for future Supabase API calls). These are read at runtime by the FastAPI settings layer.
 
 ### Data Protection
 
