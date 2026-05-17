@@ -28,7 +28,7 @@ jobs:
           POSTGRES_PASSWORD: fitness
           POSTGRES_DB: fitness
         ports:
-          - 5433:5433
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U fitness -d fitness"
           --health-interval 5s
