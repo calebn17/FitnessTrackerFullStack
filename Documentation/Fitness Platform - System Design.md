@@ -224,32 +224,51 @@ A monolith with clear domain boundaries, designed to split into services if need
 | `POST` | `/api/v1/auth/register` | User registration |
 | `POST` | `/api/v1/auth/login` | User login, returns JWT |
 | `GET` | `/api/v1/users/me` | Current user profile (Bearer Supabase access JWT); creates local `users` row on first success |
-| `GET` | `/api/v1/workouts` | List workouts (paginated) |
-| `POST` | `/api/v1/workouts` | Create workout |
-| `GET` | `/api/v1/workouts/{id}` | Get workout details with sets |
-| `PUT` | `/api/v1/workouts/{id}` | Update workout |
-| `DELETE` | `/api/v1/workouts/{id}` | Delete workout |
+| `GET` | `/api/v1/workouts` | List workouts (paginated); response `{ items, total, page, per_page }` (Bearer JWT) |
+| `POST` | `/api/v1/workouts` | Create workout (requires `client_id`, `workout_type`, optional `sets`) |
+| `GET` | `/api/v1/workouts/{id}` | Get workout by **server** `id` with sets and optional metrics / insight status |
+| `PUT` | `/api/v1/workouts/{id}` | Update workout (`notes: null` clears notes; omitted fields unchanged) |
+| `DELETE` | `/api/v1/workouts/{id}` | Soft-delete workout (`deleted_at`); hidden from list/get |
 | `POST` | `/api/v1/workouts/{id}/sets` | Add exercise set |
+| `PUT` | `/api/v1/workouts/{id}/sets/{set_id}` | Update set |
+| `DELETE` | `/api/v1/workouts/{id}/sets/{set_id}` | Delete set (hard delete row) |
 | `GET` | `/api/v1/workouts/{id}/insights` | Get AI insights for workout |
 | `POST` | `/api/v1/sync` | Batch sync endpoint for offline changes |
 
 ### Request/Response Patterns
 
-**Create Workout Request:**
+**Create Workout Request (Phase 4 API):**
 ```json
 {
+  "client_id": "550e8400-e29b-41d4-a716-446655440000",
   "date": "2026-04-25",
-  "type": "strength",
+  "workout_type": "strength",
+  "notes": null,
   "sets": [
     {
       "exercise_name": "Bench Press",
+      "set_number": 1,
       "reps": 8,
       "weight": 185,
+      "weight_unit": "lbs",
       "rpe": 8
     }
   ]
 }
 ```
+
+**List Workouts Response (envelope):**
+```json
+{
+  "items": [],
+  "total": 0,
+  "page": 1,
+  "per_page": 20
+}
+```
+
+**List Query Validation (422):**
+- Invalid list query values (for example `order_by`, `order_dir`, `workout_type`) return `422 Unprocessable Entity`.
 
 **Sync Request (Batch):**
 ```json

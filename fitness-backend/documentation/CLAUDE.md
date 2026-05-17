@@ -52,6 +52,7 @@ Single test file (after activating `.venv` or with deps on `PATH`):
 ```bash
 PYTHONPATH=. pytest tests/unit/test_repositories.py
 PYTHONPATH=. pytest tests/integration/test_users_router.py
+PYTHONPATH=. pytest tests/integration/test_workouts_router.py
 ```
 
 Single test by name:
@@ -110,11 +111,11 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 3 (Supabase JWT + `/api/v1/users/me`)** on top of Phase 2 data layer.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 4 (Workout CRUD + exercise sets)** on top of Phase 3 auth and Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app(); /health; includes users router under api_v1_prefix
+├── main.py              # create_app(); /health; includes users + workouts routers under api_v1_prefix
 ├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
 ├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
@@ -123,7 +124,7 @@ app/
 │   └── security.py      # JWT decode + get_supabase_jwt_claims (Bearer → claims or 401)
 └── domains/
     ├── users/           # User (supabase_id, email); service sync; GET /users/me
-    ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
+    ├── workouts/        # Workout CRUD, exercise sets; JWT-scoped /workouts routes
     └── ai/              # Insight (pending → completed AI output)
 ```
 
@@ -184,4 +185,4 @@ Tests skip automatically (not fail) if Postgres is unreachable.
 
 ## CI
 
-GitHub Actions (`.github/workflows/ci.yml`) runs `ruff check .` → `mypy app` → `alembic upgrade head` → `pytest` on changes to `fitness-backend/` (job includes a Postgres service). All steps must pass before work is complete.
+GitHub Actions (`.github/workflows/ci.yml`) runs `ruff check .` → `mypy app` → `alembic upgrade head` → `pytest tests/test_health.py tests/unit tests/integration` on changes to `fitness-backend/` (job includes a Postgres service). All steps must pass before work is complete.
