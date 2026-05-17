@@ -162,9 +162,9 @@ Each domain follows a consistent layered pattern:
 | `models.py` | `Workout`, `ExerciseSet`, `DerivedMetrics` |
 | `schemas.py` | Request/response models for all CRUD operations |
 | `repository.py` | All database queries with pagination, filtering |
-| `service.py` | Validation, metrics calculation |
+| `service.py` | Validation; orchestrates derived metrics refresh via repository (Phase 5) |
 | `router.py` | Full REST API for workouts and sets |
-| `metrics.py` | Volume/intensity calculation functions |
+| `metrics.py` | Pure aggregate + muscle-group helpers; repository applies to `DerivedMetrics` rows |
 
 #### Sync Domain
 

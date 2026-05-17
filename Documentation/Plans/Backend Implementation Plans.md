@@ -359,24 +359,24 @@ curl localhost:8000/api/v1/workouts/550e8400-e29b-41d4-a716-446655440000 \
 
 ### Tasks
 
-- [ ] **5.1 Metrics Calculation**
+- [x] **5.1 Metrics Calculation**
   - Create `app/domains/workouts/metrics.py`
-  - `calculate_metrics(workout: Workout) → DerivedMetrics`
+  - `calculate_derived_metrics_values` (+ `apply_values_to_derived_metrics` for ORM rows)
   - Total volume: `sum(weight * reps)`
   - Total sets, reps, avg RPE
   - Exercise count, muscle groups
 
-- [ ] **5.2 Muscle Group Mapping**
+- [x] **5.2 Muscle Group Mapping**
   - Create exercise → muscle group mapping
   - Start with common exercises (bench, squat, deadlift, etc.)
   - Handle unknown exercises gracefully
 
-- [ ] **5.3 Integration with Workout Service**
+- [x] **5.3 Integration with Workout Service**
   - After workout create/update, calculate metrics
   - Store in `derived_metrics` table
   - Include metrics in workout response
 
-- [ ] **5.4 Unit Tests**
+- [x] **5.4 Unit Tests**
   - Test volume calculation
   - Test edge cases (bodyweight exercises, no RPE)
   - Test muscle group inference

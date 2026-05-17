@@ -90,6 +90,15 @@ class WorkoutService:
         self._session = session
         self._workouts = WorkoutRepository(session)
 
+    async def _ensure_metrics_for_workout(self, workout: Workout) -> None:
+        if workout.derived_metrics is None:
+            await self._workouts.refresh_derived_metrics(workout)
+            await self._session.commit()
+            await self._session.refresh(
+                workout,
+                attribute_names=["exercise_sets", "derived_metrics", "insight"],
+            )
+
     async def _user_from_claims(self, claims: dict[str, Any]) -> uuid.UUID:
         try:
             user = await UserService(self._session).get_or_create_from_supabase(claims)
@@ -116,6 +125,7 @@ class WorkoutService:
                 client_id=payload.client_id,
                 exercise_sets=exercise_sets,
             )
+            await self._workouts.refresh_derived_metrics(workout)
             await self._session.commit()
         except IntegrityError as exc:
             await self._session.rollback()
@@ -147,6 +157,8 @@ class WorkoutService:
             params,
             load_children=True,
         )
+        for row in rows:
+            await self._ensure_metrics_for_workout(row)
         items = [serialize_workout_read(w) for w in rows]
         return WorkoutListResponse(
             items=items,
@@ -171,6 +183,7 @@ class WorkoutService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "workout_not_found", "message": "Workout not found."},
             )
+        await self._ensure_metrics_for_workout(workout)
         return serialize_workout_read(workout)
 
     async def update_workout(
@@ -200,6 +213,9 @@ class WorkoutService:
         if payload.sets is not None:
             new_sets = [_exercise_set_from_create(s) for s in payload.sets]
             await self._workouts.replace_exercise_sets(workout, new_sets)
+            await self._workouts.refresh_derived_metrics(workout)
+        elif workout.derived_metrics is None:
+            await self._workouts.refresh_derived_metrics(workout)
         workout.updated_at = now
         try:
             await self._session.commit()
@@ -256,7 +272,18 @@ class WorkoutService:
         new_set = _exercise_set_from_create(payload, workout_id=workout.id)
         self._session.add(new_set)
         await self._session.flush()
-        await self._workouts.touch_workout_updated(workout, when=_utcnow())
+        workout_for_metrics = await self._workouts.get_by_id_for_user(
+            workout_id,
+            user_id,
+            load_children=True,
+        )
+        if workout_for_metrics is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"code": "workout_not_found", "message": "Workout not found."},
+            )
+        await self._workouts.refresh_derived_metrics(workout_for_metrics)
+        await self._workouts.touch_workout_updated(workout_for_metrics, when=_utcnow())
         await self._session.commit()
         await self._session.refresh(new_set)
         return ExerciseSetRead.model_validate(new_set)
@@ -278,8 +305,14 @@ class WorkoutService:
         data = payload.model_dump(exclude_unset=True)
         for key, value in data.items():
             setattr(es, key, value)
-        workout = await self._workouts.get_by_id_for_user(workout_id, user_id)
+        await self._session.flush()
+        workout = await self._workouts.get_by_id_for_user(
+            workout_id,
+            user_id,
+            load_children=True,
+        )
         if workout is not None:
+            await self._workouts.refresh_derived_metrics(workout)
             await self._workouts.touch_workout_updated(workout, when=_utcnow())
         await self._session.commit()
         await self._session.refresh(es)
@@ -299,7 +332,13 @@ class WorkoutService:
                 detail={"code": "set_not_found", "message": "Exercise set not found."},
             )
         await self._session.delete(es)
-        workout = await self._workouts.get_by_id_for_user(workout_id, user_id)
+        await self._session.flush()
+        workout = await self._workouts.get_by_id_for_user(
+            workout_id,
+            user_id,
+            load_children=True,
+        )
         if workout is not None:
+            await self._workouts.refresh_derived_metrics(workout)
             await self._workouts.touch_workout_updated(workout, when=_utcnow())
         await self._session.commit()

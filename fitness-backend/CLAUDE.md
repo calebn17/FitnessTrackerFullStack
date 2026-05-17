@@ -55,7 +55,7 @@ Or: `uv sync --extra dev`
 
 ## Architecture
 
-**Modular monolith** — FastAPI, domain-driven. Current phase: **Phase 3** (Supabase JWT + `/api/v1/users/me`).
+**Modular monolith** — FastAPI, domain-driven. Current phase: **Phase 5** (derived metrics + Phase 4 workout CRUD) on Phase 3 auth and Phase 2 data layer.
 
 ```
 app/

@@ -93,6 +93,10 @@ When you **create or execute a plan** (including `TodoWrite` / task lists in cha
 - **Verifiable completion** — Each todo must spell out (implicitly or in the plan) how you know it is done: automated tests, lint/build, a manual check, or another observable outcome — not an open-ended “improve X” with no check.
 - **Prefer runnable proof for code** — When the slice changes application or API behavior, default to including or extending **tests** (or an equivalent automated check) in that same todo so the commit is both committable and falsifiable.
 
+### Test quality
+
+- **Validate real behavior** — Write tests that exercise **actual functionality** and **would fail if a regression is introduced**; do **not** write tests only to have passing tests. Assertions should check the **real system** under test using **meaningful inputs and outputs** (e.g. HTTP responses, persisted data, domain results, error cases), not hollow or self-fulfilling checks.
+
 ### Stop for review after each todo
 
 - **After completing a single todo item**, **pause**: summarize what changed, then **wait for the user to review** before starting the next item.
