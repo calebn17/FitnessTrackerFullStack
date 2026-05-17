@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.config import get_settings
 from app.core.database import dispose_engine
 from app.domains.users.router import router as users_router
+from app.domains.workouts.router import router as workouts_router
 
 
 @asynccontextmanager
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
     )
 
     application.include_router(users_router, prefix=settings.api_v1_prefix)
+    application.include_router(workouts_router, prefix=settings.api_v1_prefix)
 
     @application.get("/health")
     async def health() -> dict[str, str]:
