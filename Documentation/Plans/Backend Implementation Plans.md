@@ -489,24 +489,26 @@ curl -X POST localhost:8000/api/v1/sync \
 
 **Goal:** Structured logging, metrics, and Grafana Cloud integration.
 
+**Status (backend repo):** 7.1–7.4 and 7.6 are implemented in `fitness-backend` (`structlog`, `prometheus-client`, `app/core/logging.py`, `app/core/middleware.py`, `app/core/metrics.py`, `GET /metrics`, enhanced `GET /health`). **7.5** remains operator-driven (Grafana Cloud account, agents, dashboards); runbook notes live in the backend design spec Part 5 §12.6.
+
 ### Tasks
 
-- [ ] **7.1 Structured Logging**
+- [x] **7.1 Structured Logging**
   - Install `structlog`
   - Create `app/core/logging.py`
   - Configure JSON output
   - Add request ID to all logs
 
-- [ ] **7.2 Request Logging Middleware**
+- [x] **7.2 Request Logging Middleware**
   - Log method, path, status, duration for every request
   - Include user_id if authenticated
 
-- [ ] **7.3 Prometheus Metrics**
+- [x] **7.3 Prometheus Metrics**
   - Install `prometheus-client`
   - Create `app/core/metrics.py`
   - Define metrics: request count, latency histogram
 
-- [ ] **7.4 Metrics Endpoint**
+- [x] **7.4 Metrics Endpoint**
   - `GET /metrics` — Prometheus scrape endpoint
 
 - [ ] **7.5 Grafana Cloud Setup**
@@ -515,7 +517,7 @@ curl -X POST localhost:8000/api/v1/sync \
   - Configure Prometheus remote write
   - Import or create dashboards
 
-- [ ] **7.6 Health Check Enhancement**
+- [x] **7.6 Health Check Enhancement**
   - Check database connectivity
   - Return detailed health status
 

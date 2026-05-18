@@ -19,7 +19,7 @@ status: draft
 ### 5.1 Router Structure
 
 ```python
-# app/main.py (simplified; see repo for lifespan and /health)
+# app/main.py (simplified; see repo for lifespan, /health, /metrics, middleware)
 from fastapi import FastAPI
 
 from app.config import get_settings
@@ -29,7 +29,7 @@ from app.domains.workouts.router import router as workouts_router
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    application = FastAPI(title=settings.app_name, debug=settings.debug)  # lifespan + /health in repo
+    application = FastAPI(title=settings.app_name, debug=settings.debug)  # lifespan, observability, /health, /metrics in repo
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(workouts_router, prefix=settings.api_v1_prefix)
     application.include_router(sync_router, prefix=settings.api_v1_prefix)
@@ -37,6 +37,15 @@ def create_app() -> FastAPI:
 ```
 
 Routers set their own path prefix inside the domain (for example `users` exposes `/users/me`, which becomes `/api/v1/users/me` once mounted with `settings.api_v1_prefix`, default `/api/v1`). The `workouts` router is registered for Phase 4 CRUD; the `sync` router is registered for Phase 6 batch sync; `ai` remains aligned with the insight model / future routes in `create_app`.
+
+#### Platform endpoints (Phase 7)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| `GET` | `/health` | Liveness/readiness-style check: runs `SELECT 1` via `get_db_session`; JSON `status` + `checks.database` | None |
+| `GET` | `/metrics` | Prometheus text exposition (`http_requests_total`, `http_request_duration_seconds`, …) | None (restrict at edge in production) |
+
+The app factory also registers **`RequestObservabilityMiddleware`** (structured request logs, `X-Request-ID`, metrics for all routes except `/metrics`). See Part 5 §12.
 
 ### 5.2 Endpoint Specifications
 
