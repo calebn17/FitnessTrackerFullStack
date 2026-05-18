@@ -55,20 +55,24 @@ Or: `uv sync --extra dev`
 
 ## Architecture
 
-**Modular monolith** — FastAPI, domain-driven. Current phase: **Phase 5** (derived metrics + Phase 4 workout CRUD) on Phase 3 auth and Phase 2 data layer.
+**Modular monolith** — FastAPI, domain-driven. Current phase: **Phase 6 (sync) + Phase 7 (observability)** on Phase 5 derived metrics, Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app(); /health; api_v1 router includes
+├── main.py              # create_app(); observability; /health; /metrics; api_v1 router includes
 ├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
 ├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
 │   ├── database.py      # Async SQLAlchemy engine/session singletons; Base
 │   ├── repository.py    # BaseRepository(session)
-│   └── security.py      # JWT decode + get_supabase_jwt_claims
+│   ├── security.py      # JWT decode + get_supabase_jwt_claims
+│   ├── logging.py       # structlog JSON + request context
+│   ├── metrics.py       # Prometheus metrics
+│   └── middleware.py    # request logs + metrics + X-Request-ID
 └── domains/
     ├── users/           # User model; GET /users/me
     ├── workouts/        # Workout → ExerciseSet, DerivedMetrics
+    ├── sync/            # Batch sync routes
     └── ai/              # Insight (AI evaluation pipeline)
 ```
 

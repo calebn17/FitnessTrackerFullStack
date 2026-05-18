@@ -186,66 +186,37 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[TestClient, None]:
 
 ## 12. Observability Integration
 
-### 12.1 Structured Logging
+**Shipped in Phase 7** (see `app/core/logging.py`, `app/core/middleware.py`, `app/core/metrics.py`, `app/main.py`):
+
+| Concern | Behavior |
+|---------|----------|
+| **Logging** | `configure_logging(debug=settings.debug)` runs in `create_app()`. Logs are **JSON** lines to stdout with `timestamp` (ISO), `level`, `event`, and bound context (`request_id`, optional `user_id`). |
+| **Request log** | `RequestObservabilityMiddleware` logs `http.request` with `method`, `path`, `route` (matched template when available), `status`, `duration_ms`. Propagates or sets **`X-Request-ID`** on the response. |
+| **Auth context** | If `Authorization: Bearer` decodes with the configured Supabase secret/audience, **`user_id`** is set to JWT `sub` for logs (decode failures are ignored; routes still enforce auth). |
+| **Metrics** | `http_requests_total` (labels `method`, `route`, `status_code`) and `http_request_duration_seconds` (labels `method`, `route`). **`GET /metrics`** is excluded from metric increments to avoid self-scrape noise. |
+| **Health** | **`GET /health`** uses `Depends(get_db_session)`, runs `SELECT 1`, returns `{"status":"ok","checks":{"database":{"status":"ok"}}}` or **503** `{"status":"unhealthy",...}` on failure. |
+
+Runtime dependencies: `structlog`, `prometheus-client` (see `pyproject.toml`).
+
+### 12.1 Future metrics (AI pipeline)
+
+Illustrative histograms for later phases (not registered until the AI pipeline ships):
 
 ```python
-# app/core/logging.py
-import structlog
-from app.config import settings
-
-def setup_logging():
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.add_log_level,
-            structlog.processors.JSONRenderer()
-        ],
-        logger_factory=structlog.PrintLoggerFactory(),
-    )
-
-logger = structlog.get_logger()
-
-# Usage in routes
-@router.post("/workouts")
-async def create_workout(workout: WorkoutCreate, user: User = Depends(get_current_user)):
-    logger.info(
-        "workout.create",
-        user_id=str(user.id),
-        workout_type=workout.workout_type,
-        set_count=len(workout.sets),
-    )
-```
-
-### 12.2 Metrics
-
-```python
-# app/core/metrics.py
-from prometheus_client import Counter, Histogram
-
-REQUEST_COUNT = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "status"]
-)
-
-REQUEST_LATENCY = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request latency",
-    ["method", "endpoint"]
-)
-
+# Future: app/core/metrics.py additions
 AI_PIPELINE_DURATION = Histogram(
     "ai_pipeline_duration_seconds",
     "AI pipeline processing time",
-    ["status"]
-)
-
-AI_EVALUATION_SCORE = Histogram(
-    "ai_evaluation_score",
-    "AI output quality score",
-    buckets=[0.1, 0.25, 0.5, 0.75, 0.9, 1.0]
+    ["status"],
 )
 ```
+
+### 12.2 Grafana Cloud (operator runbook)
+
+1. Create a **Grafana Cloud** stack (Hosted Grafana + **Mimir** or **Prometheus** remote write + **Loki**).
+2. **Metrics:** Configure a Grafana Agent or Prometheus scrape job against the service URL `https://<host>/metrics` (or internal URL). Import or build panels on `http_requests_total` and `http_request_duration_seconds` (rate, histogram_quantile for latency).
+3. **Logs:** Ship container stdout (JSON) to **Loki** (Docker log driver, Grafana Agent `loki.source`, or platform log drain). Parse JSON; index on `request_id`, `level`, `event`.
+4. **Alerts:** Start with error rate (5xx ratio from `status` / `status_code`) and health check failures from the load balancer or synthetic checks.
 
 ---
 

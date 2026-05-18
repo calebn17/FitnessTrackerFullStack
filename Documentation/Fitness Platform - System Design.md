@@ -392,6 +392,10 @@ A monolith with clear domain boundaries, designed to split into services if need
 
 ## 8. Observability
 
+### Backend instrumentation (Phase 7 shipped)
+
+The FastAPI service emits **one JSON log line per HTTP request** (`event`: `http.request`) with `timestamp`, `level`, `method`, `path`, matched route template, `status`, `duration_ms`, and `request_id` (from `X-Request-ID` or generated). When a valid Supabase Bearer token is present, logs also include `user_id` (JWT `sub`). Prometheus metrics **`http_requests_total`** (labels `method`, `route`, `status_code`) and **`http_request_duration_seconds`** (histogram; labels `method`, `route`) are exposed at **`GET /metrics`** (Prometheus text format). **`GET /health`** returns JSON with `status` and nested `checks.database.status` after `SELECT 1` via the same DB session dependency as API routes (503 when the DB check fails).
+
 ### Three Pillars (Grafana Cloud)
 
 | Pillar | Tool | Key Metrics |
@@ -425,7 +429,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 - **Auth Provider:** Supabase Auth
 - **Methods:** Apple Sign-In, Google, email/password
 - **Token Storage:** iOS Keychain / Web secure storage
-- **API Security:** Protected routes expect `Authorization: Bearer <access_token>` (Supabase-issued HS256 JWT with `sub`, `exp`, and `aud`). The backend validates the signature and audience, then maps `sub` (+ `email` claim) to a local `users` row and syncs the stored email when it changes in Supabase. **Public routes today:** `GET /health` only; `/api/v1/users/me` requires a valid token. Misconfigured or bad tokens return **401** with a stable JSON `detail.code` (for example `token_expired`, `token_invalid_signature`, `missing_authorization`). Missing or invalid user claims after decode return **422** with `invalid_user_claims` on `GET /api/v1/users/me`.
+- **API Security:** Protected routes expect `Authorization: Bearer <access_token>` (Supabase-issued HS256 JWT with `sub`, `exp`, and `aud`). The backend validates the signature and audience, then maps `sub` (+ `email` claim) to a local `users` row and syncs the stored email when it changes in Supabase. **Public routes today:** `GET /health` and `GET /metrics` (Prometheus scrape; restrict exposure at the edge in production if needed); `/api/v1/users/me` requires a valid token. Misconfigured or bad tokens return **401** with a stable JSON `detail.code` (for example `token_expired`, `token_invalid_signature`, `missing_authorization`). Missing or invalid user claims after decode return **422** with `invalid_user_claims` on `GET /api/v1/users/me`.
 - **Backend auth configuration:** `SUPABASE_JWT_SECRET` (JWT signing secret from the Supabase project), optional `SUPABASE_JWT_AUDIENCE` (default `authenticated`), and optional `SUPABASE_URL` (reserved for future Supabase API calls). These are read at runtime by the FastAPI settings layer.
 
 ### Data Protection

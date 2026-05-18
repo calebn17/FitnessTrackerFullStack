@@ -46,7 +46,8 @@ make dev
 ```
 
 - API: `http://localhost:8000`
-- Health: `curl http://localhost:8000/health` → `{"status":"ok"}`
+- Health: `curl http://localhost:8000/health` → JSON with `status` and `checks.database` (503 if DB unreachable)
+- Metrics: `curl http://localhost:8000/metrics` → Prometheus text format
 - Postgres host port: `5433` (`docker-compose` maps `5433:5432` so it can coexist with other local Postgres services)
 - Auth: set `SUPABASE_JWT_SECRET` in `.env` (optional: `SUPABASE_JWT_AUDIENCE`, default `authenticated`; `SUPABASE_URL` reserved for future use). Without `SUPABASE_JWT_SECRET`, authenticated routes return **401** with `detail.code` = `auth_not_configured`.
 
