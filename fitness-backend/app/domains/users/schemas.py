@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SupabaseUserClaims(BaseModel):
@@ -11,8 +11,8 @@ class SupabaseUserClaims(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    sub: str
-    email: str
+    sub: str = Field(..., max_length=128)
+    email: str = Field(..., max_length=320)
 
     @field_validator("sub", "email")
     @classmethod

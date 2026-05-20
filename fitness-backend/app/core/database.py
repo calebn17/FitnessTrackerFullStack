@@ -13,6 +13,16 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import Settings, get_settings
 
 
+def _engine_kwargs(cfg: Settings) -> dict[str, object]:
+    return {
+        "echo": cfg.debug,
+        "pool_size": cfg.database_pool_size,
+        "max_overflow": cfg.database_max_overflow,
+        "pool_timeout": cfg.database_pool_timeout,
+        "pool_recycle": cfg.database_pool_recycle,
+    }
+
+
 class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
 
@@ -30,7 +40,7 @@ def get_engine(settings: Settings | None = None) -> AsyncEngine:
     global _engine
     if _engine is None:
         cfg = settings or get_settings()
-        _engine = create_async_engine(cfg.database_url, echo=cfg.debug)
+        _engine = create_async_engine(cfg.database_url, **_engine_kwargs(cfg))
     return _engine
 
 
@@ -70,5 +80,5 @@ async def init_database_engine(settings: Settings | None = None) -> None:
     global _engine, _session_factory
     await dispose_engine()
     cfg = settings or get_settings()
-    _engine = create_async_engine(cfg.database_url, echo=cfg.debug)
+    _engine = create_async_engine(cfg.database_url, **_engine_kwargs(cfg))
     _session_factory = _make_session_factory(_engine)

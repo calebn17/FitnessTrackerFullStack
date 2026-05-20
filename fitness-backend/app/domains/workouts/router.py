@@ -6,11 +6,13 @@ from datetime import date
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import Response
 
+from app.core.rate_limit import configured_read_limit, configured_write_limit, limiter
 from app.dependencies import get_db_session, get_supabase_jwt_claims
 from app.domains.workouts.schemas import (
     ExerciseSetCreate,
@@ -53,7 +55,10 @@ def get_workout_list_params(
 
 
 @router.get("", response_model=WorkoutListResponse)
+@limiter.limit(configured_read_limit)
 async def list_workouts(
+    request: Request,
+    response: Response,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     params: Annotated[WorkoutListParams, Depends(get_workout_list_params)],
@@ -63,7 +68,10 @@ async def list_workouts(
 
 
 @router.post("", response_model=WorkoutRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit(configured_write_limit)
 async def create_workout(
+    request: Request,
+    response: Response,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
     payload: WorkoutCreate,
@@ -73,7 +81,10 @@ async def create_workout(
 
 
 @router.get("/{workout_id}", response_model=WorkoutRead)
+@limiter.limit(configured_read_limit)
 async def get_workout(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -83,7 +94,10 @@ async def get_workout(
 
 
 @router.put("/{workout_id}", response_model=WorkoutRead)
+@limiter.limit(configured_write_limit)
 async def update_workout(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -94,7 +108,10 @@ async def update_workout(
 
 
 @router.delete("/{workout_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(configured_write_limit)
 async def delete_workout(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -108,7 +125,10 @@ async def delete_workout(
     response_model=ExerciseSetRead,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(configured_write_limit)
 async def add_exercise_set(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
@@ -119,7 +139,10 @@ async def add_exercise_set(
 
 
 @router.put("/{workout_id}/sets/{set_id}", response_model=ExerciseSetRead)
+@limiter.limit(configured_write_limit)
 async def update_exercise_set(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     set_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
@@ -136,7 +159,10 @@ async def update_exercise_set(
 
 
 @router.delete("/{workout_id}/sets/{set_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit(configured_write_limit)
 async def delete_exercise_set(
+    request: Request,
+    response: Response,
     workout_id: UUID,
     set_id: UUID,
     claims: Annotated[dict[str, Any], Depends(get_supabase_jwt_claims)],
