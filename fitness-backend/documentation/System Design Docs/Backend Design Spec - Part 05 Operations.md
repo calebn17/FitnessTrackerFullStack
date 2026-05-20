@@ -10,7 +10,7 @@ status: draft
 
 **Parent:** [Backend Design Spec (index)](Backend%20Design%20Spec.md)
 
-**In this part:** [§8 Authentication](#8-authentication) · [§9 Configuration](#9-configuration) · [§10 Error handling](#10-error-handling) · [§11 Testing](#11-testing-strategy) · [§12 Observability](#12-observability-integration) · [§13 Deployment](#13-deployment) · [Next steps](#next-steps)
+**In this part:** [§8 Authentication](#8-authentication) · [§9 Configuration](#9-configuration) · [§10 Error handling](#10-error-handling) · [§11 Testing](#11-testing-strategy) · [§12 Production hardening](#12-production-hardening-phase-8) · [§13 Observability](#13-observability-integration) · [§14 Deployment](#14-deployment) · [Next steps](#next-steps)
 
 ---
 
@@ -184,7 +184,23 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[TestClient, None]:
 
 ---
 
-## 12. Observability Integration
+## 12. Production hardening (Phase 8)
+
+Shipped cross-cutting behavior in `app/main.py`, `app/core/rate_limit.py`, `app/core/security_headers.py`, `app/config.py`, and domain routers:
+
+| Concern | Implementation |
+|---------|------------------|
+| **Rate limits** | SlowAPI per-IP read/write limits on `/api/v1/*` routes; `429` on exceed |
+| **CORS** | `CORSMiddleware`; explicit `CORS_ALLOWED_ORIGINS` in production; dev/test localhost defaults when unset |
+| **Security headers** | `nosniff`, `DENY` frame, `no-referrer`, `no-store` on `/api/v1` responses |
+| **Sanitized 500s** | Generic `internal_server_error` when `debug=false` |
+| **DB pool** | `create_async_engine(..., pool_size=..., max_overflow=..., pool_timeout=..., pool_recycle=...)` |
+| **Indexes** | Alembic `phase2_04_workout_query_indexes` — `workouts(user_id, deleted_at, date)` and `workouts(user_id, client_id)` |
+| **Load tests** | `fitness-backend/load-tests/common_flows.js` (k6) |
+
+---
+
+## 13. Observability Integration
 
 **Shipped in Phase 7** (see `app/core/logging.py`, `app/core/middleware.py`, `app/core/metrics.py`, `app/main.py`):
 
@@ -198,7 +214,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[TestClient, None]:
 
 Runtime dependencies: `structlog`, `prometheus-client` (see `pyproject.toml`).
 
-### 12.1 Future metrics (AI pipeline)
+### 13.1 Future metrics (AI pipeline)
 
 Illustrative histograms for later phases (not registered until the AI pipeline ships):
 
@@ -211,7 +227,7 @@ AI_PIPELINE_DURATION = Histogram(
 )
 ```
 
-### 12.2 Grafana Cloud (operator runbook)
+### 13.2 Grafana Cloud (operator runbook)
 
 1. Create a **Grafana Cloud** stack (Hosted Grafana + **Mimir** or **Prometheus** remote write + **Loki**).
 2. **Metrics:** Configure a Grafana Agent or Prometheus scrape job against the service URL `https://<host>/metrics` (or internal URL). Import or build panels on `http_requests_total` and `http_request_duration_seconds` (rate, histogram_quantile for latency).
@@ -220,9 +236,9 @@ AI_PIPELINE_DURATION = Histogram(
 
 ---
 
-## 13. Deployment
+## 14. Deployment
 
-### 13.1 Render Configuration
+### 14.1 Render Configuration
 
 ```yaml
 # render.yaml
@@ -272,7 +288,7 @@ redis:
     plan: starter
 ```
 
-### 13.2 Dockerfile
+### 14.2 Dockerfile
 
 ```dockerfile
 # Dockerfile

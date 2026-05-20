@@ -43,7 +43,7 @@ status: draft
 | 2 | [Backend Design Spec - Part 02 Database.md](Backend%20Design%20Spec%20-%20Part%2002%20Database.md) | §4 Database layer |
 | 3 | [Backend Design Spec - Part 03 API.md](Backend%20Design%20Spec%20-%20Part%2003%20API.md) | §5 API layer |
 | 4 | [Backend Design Spec - Part 04 Sync and AI.md](Backend%20Design%20Spec%20-%20Part%2004%20Sync%20and%20AI.md) | §6 Sync protocol · §7 AI pipeline |
-| 5 | [Backend Design Spec - Part 05 Operations.md](Backend%20Design%20Spec%20-%20Part%2005%20Operations.md) | §8 Auth · §9 Configuration · §10 Errors · §11 Testing · §12 Observability · §13 Deployment · Next steps |
+| 5 | [Backend Design Spec - Part 05 Operations.md](Backend%20Design%20Spec%20-%20Part%2005%20Operations.md) | §8 Auth · §9 Configuration · §10 Errors · §11 Testing · §12 Production hardening · §13 Observability · §14 Deployment · Next steps |
 
 ---
 

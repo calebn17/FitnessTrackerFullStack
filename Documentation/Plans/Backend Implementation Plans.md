@@ -545,38 +545,38 @@ curl localhost:8000/metrics
 
 ### Tasks
 
-- [ ] **8.1 Rate Limiting**
+- [x] **8.1 Rate Limiting**
   - Install `slowapi`
   - Configure limits per endpoint
   - 100 req/min for reads, 20 req/min for writes
 
-- [ ] **8.2 CORS Configuration**
+- [x] **8.2 CORS Configuration**
   - Allow only known origins
   - Configure for iOS app and web app domains
 
-- [ ] **8.3 Input Validation Hardening**
+- [x] **8.3 Input Validation Hardening**
   - Review all Pydantic models
   - Add string length limits
   - Add numeric bounds
 
-- [ ] **8.4 SQL Injection Review**
+- [x] **8.4 SQL Injection Review**
   - Verify all queries use parameterization
   - No raw SQL with string interpolation
 
-- [ ] **8.5 Error Response Sanitization**
+- [x] **8.5 Error Response Sanitization**
   - Don't leak stack traces in production
   - Generic error messages for 500s
 
-- [ ] **8.6 Connection Pooling**
+- [x] **8.6 Connection Pooling**
   - Configure pool size for expected load
   - Add connection timeout
 
-- [ ] **8.7 Query Optimization**
+- [x] **8.7 Query Optimization**
   - Add indexes for common queries
   - Use EXPLAIN ANALYZE on slow queries
   - Implement eager loading where needed
 
-- [ ] **8.8 Load Testing**
+- [x] **8.8 Load Testing**
   - Use `locust` or `k6`
   - Test common flows under load
   - Identify bottlenecks
@@ -589,7 +589,7 @@ for i in {1..150}; do curl localhost:8000/api/v1/workouts; done
 # Returns 429 after limit exceeded
 
 # Load test passes
-k6 run load_test.js
+k6 run load-tests/common_flows.js
 # p99 latency < 500ms at 50 concurrent users
 
 # Security headers present

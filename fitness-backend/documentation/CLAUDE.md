@@ -57,7 +57,12 @@ PYTHONPATH=. pytest tests/integration/test_users_router.py
 PYTHONPATH=. pytest tests/integration/test_workouts_router.py
 PYTHONPATH=. pytest tests/integration/test_sync_router.py
 PYTHONPATH=. pytest tests/integration/test_observability.py
+PYTHONPATH=. pytest tests/integration/test_hardening.py
 ```
+
+## Load testing (k6, Phase 8)
+
+Optional [k6](https://k6.io/) scripts live under `load-tests/`. See [`load-tests/README.md`](load-tests/README.md). Requires a test JWT (`JWT` env) and running API (`BASE_URL`).
 
 Single test by name:
 
@@ -115,11 +120,11 @@ docker compose exec -T postgres psql -U fitness -d fitness -c "SELECT current_da
 
 ## Architecture
 
-**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 6 (workout sync)** plus **Phase 7 (observability: structured logs, Prometheus `/metrics`, enhanced `/health`)** on top of Phase 5 derived metrics, Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
+**Modular monolith** — FastAPI backend with domain-driven structure. Current phase: **Phase 8 (production hardening)** on top of Phase 6 sync, Phase 7 observability, Phase 5 derived metrics, Phase 4 workout CRUD, Phase 3 auth, and Phase 2 data layer.
 
 ```
 app/
-├── main.py              # create_app(); observability middleware; /health; /metrics; routers under api_v1_prefix
+├── main.py              # create_app(); CORS; security headers; rate limits; observability; /health; /metrics; routers
 ├── config.py            # Pydantic Settings (DATABASE_URL, SUPABASE_JWT_SECRET, etc.)
 ├── dependencies.py      # DI: get_db_session, get_settings, get_supabase_jwt_claims
 ├── core/
@@ -128,6 +133,8 @@ app/
 │   ├── security.py      # JWT decode + get_supabase_jwt_claims (Bearer → claims or 401)
 │   ├── logging.py       # structlog JSON configuration; request context helpers
 │   ├── metrics.py       # Prometheus counters/histograms + exposition helper
+│   ├── rate_limit.py    # SlowAPI shared limiter (app.state.limiter)
+│   ├── security_headers.py  # Security headers + Cache-Control for /api/v1
 │   └── middleware.py    # RequestObservabilityMiddleware (logs + metrics + X-Request-ID)
 └── domains/
     ├── users/           # User (supabase_id, email); service sync; GET /users/me
