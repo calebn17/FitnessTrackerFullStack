@@ -47,3 +47,30 @@ def test_workout_list_params_defaults() -> None:
     assert p.per_page == 20
     assert p.order_by == "date"
     assert p.order_dir == "desc"
+
+
+def test_workout_create_rejects_too_many_sets() -> None:
+    sets = [
+        ExerciseSetCreate(
+            exercise_name="Squat",
+            set_number=i + 1,
+            reps=1,
+        )
+        for i in range(201)
+    ]
+    with pytest.raises(ValidationError):
+        WorkoutCreate(
+            client_id=uuid.uuid4(),
+            date=date(2026, 4, 25),
+            workout_type="strength",
+            sets=sets,
+        )
+
+
+def test_exercise_set_create_rejects_huge_set_number() -> None:
+    with pytest.raises(ValidationError):
+        ExerciseSetCreate(
+            exercise_name="Squat",
+            set_number=99_999,
+            reps=1,
+        )

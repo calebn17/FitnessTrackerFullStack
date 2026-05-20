@@ -21,6 +21,15 @@ def _default_database_url() -> str:
     )
 
 
+@pytest.fixture(autouse=True)
+def _reset_slowapi_limits_before_each_test() -> None:
+    """SlowAPI uses a process-global in-memory store; reset so tests do not share one IP bucket."""
+    from app.core.rate_limit import limiter
+
+    limiter.reset()
+    yield
+
+
 @pytest.fixture(scope="session")
 def migrated_database() -> None:
     """Apply migrations once per test session."""
