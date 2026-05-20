@@ -15,6 +15,7 @@ dependencies = [
     "alembic>=1.13",
     "structlog>=24.1",
     "prometheus-client>=0.20",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
@@ -54,6 +55,10 @@ disallow_any_generics = true
 
 [[tool.mypy.overrides]]
 module = ["structlog", "structlog.*", "prometheus_client"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["slowapi", "slowapi.*", "limits", "limits.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

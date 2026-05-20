@@ -45,7 +45,16 @@ Routers set their own path prefix inside the domain (for example `users` exposes
 | `GET` | `/health` | Liveness/readiness-style check: runs `SELECT 1` via `get_db_session`; JSON `status` + `checks.database` | None |
 | `GET` | `/metrics` | Prometheus text exposition (`http_requests_total`, `http_request_duration_seconds`, …) | None (restrict at edge in production) |
 
-The app factory also registers **`RequestObservabilityMiddleware`** (structured request logs, `X-Request-ID`, metrics for all routes except `/metrics`). See Part 5 §12.
+The app factory also registers **`RequestObservabilityMiddleware`** (structured request logs, `X-Request-ID`, metrics for all routes except `/metrics`). See Part 5 §13.
+
+#### Phase 8 — Rate limits and errors
+
+| Policy | Behavior |
+|--------|----------|
+| Read routes | **100/minute** per IP (SlowAPI) on authenticated `GET` list/detail and `GET /sync/status` |
+| Write routes | **20/minute** per IP on `POST`/`PUT`/`DELETE` workouts, set routes, and `POST /sync` |
+| **429** | SlowAPI `RateLimitExceeded` response |
+| **500** | Generic JSON when `debug=false`; no stack trace in response body |
 
 ### 5.2 Endpoint Specifications
 

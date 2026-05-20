@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from app.domains.sync.schemas import (
     EntityType,
@@ -57,7 +58,7 @@ def test_sync_status_response() -> None:
 
 
 def test_sync_change_rejects_naive_client_timestamp() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         SyncChange(
             operation=OperationType.CREATE,
             entity=EntityType.WORKOUT,
@@ -67,7 +68,7 @@ def test_sync_change_rejects_naive_client_timestamp() -> None:
 
 
 def test_sync_request_rejects_naive_last_sync_at() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         SyncRequest(
             last_sync_at=datetime(2026, 5, 1, 12, 0, 0),
             changes=[],
@@ -86,5 +87,31 @@ def test_sync_request_limits_change_batch_size() -> None:
         )
         for _ in range(501)
     ]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         SyncRequest(changes=too_many)
+
+
+def test_sync_change_rejects_too_many_top_level_keys() -> None:
+    ts = datetime.now(UTC)
+    data = {f"k{i}": i for i in range(70)}
+    with pytest.raises(ValidationError, match="top-level"):
+        SyncChange(
+            operation=OperationType.UPDATE,
+            entity=EntityType.WORKOUT,
+            client_id=uuid.uuid4(),
+            client_timestamp=ts,
+            data=data,
+        )
+
+
+def test_sync_change_rejects_oversized_sets_array() -> None:
+    ts = datetime.now(UTC)
+    sets = [{"exercise_name": "A", "set_number": 1, "reps": 1} for _ in range(250)]
+    with pytest.raises(ValidationError, match="sets list"):
+        SyncChange(
+            operation=OperationType.UPDATE,
+            entity=EntityType.WORKOUT,
+            client_id=uuid.uuid4(),
+            client_timestamp=ts,
+            data={"sets": sets},
+        )

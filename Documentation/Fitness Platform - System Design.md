@@ -441,12 +441,17 @@ The FastAPI service emits **one JSON log line per HTTP request** (`event`: `http
 | **PII** | Minimize collection; email only for MVP |
 | **Secrets** | Environment variables, secrets manager |
 
-### API Security
+### API Security (Phase 8 — shipped in `fitness-backend`)
 
-- Rate limiting per user/IP
-- Input validation on all endpoints
-- SQL injection prevention (parameterized queries)
-- CORS configured for known clients only
+- **Rate limiting (SlowAPI):** Per client IP — **100/minute** on read routes (`GET` under `/api/v1/users`, `/api/v1/workouts`, `GET /api/v1/sync/status`) and **20/minute** on writes (`POST`/`PUT`/`DELETE` workouts, set mutations, `POST /api/v1/sync`). **`GET /health`** and **`GET /metrics`** are not rate limited. Excess traffic returns **429** with standard SlowAPI error JSON and rate-limit headers when applicable.
+- **CORS:** `CORSMiddleware` uses an explicit comma-separated allowlist from settings (`CORS_ALLOWED_ORIGINS`). In **`development`** / **`test`**, when the allowlist is empty, defaults include common `localhost` / `127.0.0.1` dev ports for the future web SPA. **`production`** with an empty allowlist yields an empty CORS allowlist (browser cross-origin calls blocked unless configured). Native iOS clients are unaffected by CORS (non-browser).
+- **Security headers:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and **`Cache-Control: no-store`** on `/api/v1/*` JSON responses.
+- **Error sanitization:** When **`debug=false`**, unhandled exceptions return a generic **500** body (`detail.code` = `internal_server_error`) without stack traces; **`X-Request-ID`** is echoed when present. `HTTPException` and request validation errors keep their normal FastAPI shapes.
+- **SQL safety:** Application code uses SQLAlchemy parameter binding; CI-friendly static test rejects f-string / `%` interpolation inside `text(...)`.
+- **Connection pool:** Async engine uses **`pool_size`**, **`max_overflow`**, **`pool_timeout`**, and **`pool_recycle`** from `app/config.py` settings.
+- **Input validation:** Stricter Pydantic bounds on workouts (e.g. max sets per workout), sync change `data` payload size, and JWT claim string lengths for user provisioning.
+- **Indexes:** Composite indexes on `workouts(user_id, deleted_at, date)` and `workouts(user_id, client_id)` support list and sync queries (see Alembic `phase2_04_workout_query_indexes`).
+- **Load testing:** k6 script and README under [`fitness-backend/load-tests/`](../fitness-backend/load-tests/) (requires local `k6` and a test JWT).
 
 ---
 

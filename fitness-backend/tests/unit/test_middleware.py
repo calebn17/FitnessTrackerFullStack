@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import uuid
 from collections.abc import Iterator
 
@@ -49,7 +50,12 @@ def test_unmatched_routes_use_bounded_metrics_label() -> None:
 
 
 def test_starlette_missing_response_skips_http_500_metrics() -> None:
-    """Cancelled route exceptions become RuntimeError(\"No response returned.\") upstream."""
+    """Cancelled routes must not be counted as HTTP 500 in metrics.
+
+    With Starlette's legacy BaseHTTPMiddleware, cancellation could surface as
+    RuntimeError(\"No response returned.\"). Pure ASGI middleware lets
+    asyncio.CancelledError propagate instead; both must skip the 500 counter.
+    """
     app = FastAPI()
     app.add_middleware(RequestObservabilityMiddleware)
 
@@ -60,7 +66,9 @@ def test_starlette_missing_response_skips_http_500_metrics() -> None:
     client = TestClient(app)
     before = _metric_value("/cancel", "500")
 
-    with pytest.raises(RuntimeError, match=r"^No response returned\.$"):
+    with pytest.raises(
+        (RuntimeError, asyncio.CancelledError, concurrent.futures.CancelledError),
+    ):
         client.get("/cancel")
 
     assert _metric_value("/cancel", "500") == before

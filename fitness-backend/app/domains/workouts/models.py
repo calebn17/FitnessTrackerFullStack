@@ -25,6 +25,8 @@ class Workout(Base):
         Index("idx_workouts_user_id", "user_id"),
         Index("idx_workouts_date", "date"),
         Index("idx_workouts_client_id", "client_id"),
+        Index("idx_workouts_user_deleted_date", "user_id", "deleted_at", "date"),
+        Index("idx_workouts_user_client", "user_id", "client_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
