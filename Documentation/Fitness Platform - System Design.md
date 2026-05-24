@@ -128,7 +128,7 @@ A monolith with clear domain boundaries, designed to split into services if need
 - History queries with pagination
 
 #### Activity Domain (Future)
-- External API integrations (Strava, Apple Health)
+- External API integrations (Strava, Whoop — shipped; Apple Health / Oura planned)
 - Activity normalization and storage
 
 #### AI Domain (Fast Follow)
@@ -491,9 +491,14 @@ The FastAPI service emits **one JSON log line per HTTP request** (`event`: `http
 - [x] **LLM Provider:** Anthropic Claude — quality analysis, strong reasoning
 - [x] **Auth:** Supabase Auth — Apple Sign-In + Google + email for iOS and web
 
+### Shipped (LifeDashboard integrations)
+
+- **Activities domain** — Strava OAuth + on-demand sync; `GET /api/v1/activities/recent|summary`
+- **Health domain** — Whoop OAuth + on-demand sync; `GET /api/v1/health/today|recent|summary`
+
 ### Future Work
 
-- **Activity Domain** — Strava integration, Apple Health sync
+- **Apple Health / Oura** — additional wearable providers on `daily_health_records`
 - **Event Bus** — Redis Streams for event-driven processing
 - **Recommendation Engine** — Personalized workout suggestions
 - **Android** — Native Android client

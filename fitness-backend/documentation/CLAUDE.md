@@ -140,6 +140,8 @@ app/
     ├── users/           # User (supabase_id, email); service sync; GET /users/me
     ├── workouts/        # Workout CRUD, exercise sets; JWT-scoped /workouts routes
     ├── sync/            # Phase 6 batch sync: POST/GET /sync (+ /sync/status)
+    ├── activities/      # Strava: /activities/*, /auth/strava/*
+    ├── health/          # Whoop: /health/*, /auth/whoop/*
     └── ai/              # Insight (pending → completed AI output)
 ```
 
@@ -162,6 +164,8 @@ Each domain follows: `models.py` → `schemas.py` → `repository.py` → `servi
 **Connection string** — set via `DATABASE_URL` env var; defaults to `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness` in tests.
 
 **Supabase auth (Phase 3)** — set `SUPABASE_JWT_SECRET` (required for real JWT validation on protected routes). Optional: `SUPABASE_JWT_AUDIENCE` (defaults to `authenticated`), `SUPABASE_URL` (reserved). Pydantic Settings reads these from the environment / `.env`.
+
+**LifeDashboard integrations** — optional `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `WHOOP_CLIENT_ID`, `WHOOP_CLIENT_SECRET`, redirect URIs, and `SYNC_STALENESS_MINUTES` (see `.env.example`). Endpoints return **503** `provider_not_configured` when credentials are missing.
 
 ## Repository Pattern
 
