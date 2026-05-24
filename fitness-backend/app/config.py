@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Fitness Platform API"
     debug: bool = False
+    debug_auth_enabled: bool = False
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
 

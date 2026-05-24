@@ -14,6 +14,9 @@ from jwt.exceptions import (
 
 from app.config import Settings, get_settings
 
+_DEBUG_AUTH_TOKEN = "fitnesstracker-debug-user"
+_DEBUG_USER_ID = "debug-user"
+
 
 def decode_supabase_access_token(
     token: str,
@@ -69,6 +72,11 @@ def get_supabase_jwt_claims(
 ) -> dict[str, Any]:
     """Decode the request Bearer token into Supabase JWT claims (or raise 401)."""
     raw = _parse_bearer_token(authorization)
+    if settings.debug_auth_enabled and raw == _DEBUG_AUTH_TOKEN:
+        return {
+            "sub": _DEBUG_USER_ID,
+            "aud": settings.supabase_jwt_audience,
+        }
     if not settings.supabase_jwt_secret.strip():
         raise _unauthorized(
             {
