@@ -6,7 +6,10 @@ from datetime import UTC, date, datetime
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.domains.activities.models import PROVIDER_STRAVA
+from app.domains.activities.repository import OAuthTokenRepository, StravaActivityRepository
 from app.domains.ai.models import Insight
+from app.domains.health.repository import DailyHealthRepository
 from app.domains.users.repository import UserRepository
 from app.domains.workouts.models import DerivedMetrics, ExerciseSet
 from app.domains.workouts.repository import WorkoutRepository
@@ -287,3 +290,74 @@ async def test_workout_repository_get_exercise_set_for_user(db_session) -> None:
 
     other = await users.create(supabase_id="sub-other", email="other@example.com")
     assert await workouts.get_exercise_set_for_user(workout.id, sid, other.id) is None
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_repository_upsert(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="oauth-repo-sub", email="oauth-repo@example.com")
+    tokens = OAuthTokenRepository(db_session)
+    first = await tokens.upsert(
+        user_id=user.id,
+        provider=PROVIDER_STRAVA,
+        access_token="a1",
+        refresh_token="r1",
+        expires_at=datetime.now(UTC),
+    )
+    second = await tokens.upsert(
+        user_id=user.id,
+        provider=PROVIDER_STRAVA,
+        access_token="a2",
+        refresh_token="r2",
+        expires_at=datetime.now(UTC),
+    )
+    await db_session.commit()
+    assert first.id == second.id
+    loaded = await tokens.get_for_user_provider(user.id, PROVIDER_STRAVA)
+    assert loaded is not None
+    assert loaded.access_token == "a2"
+
+
+@pytest.mark.asyncio
+async def test_strava_activity_repository_upsert_and_list(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="strava-repo-sub", email="strava-repo@example.com")
+    activities = StravaActivityRepository(db_session)
+    await activities.upsert_activity(
+        user_id=user.id,
+        values={
+            "strava_id": 4242,
+            "sport_type": "Run",
+            "start_date_local": datetime.now(UTC),
+            "distance": 1000.0,
+            "moving_time": 600,
+            "elapsed_time": 620,
+            "average_speed": 1.6,
+            "total_elevation_gain": 10.0,
+            "pr_count": 0,
+        },
+    )
+    await db_session.commit()
+    rows = await activities.list_recent(user.id, limit=5)
+    assert len(rows) == 1
+    assert rows[0].strava_id == 4242
+
+
+@pytest.mark.asyncio
+async def test_daily_health_repository_upsert(db_session) -> None:
+    users = UserRepository(db_session)
+    user = await users.create(supabase_id="health-repo-sub", email="health-repo@example.com")
+    health = DailyHealthRepository(db_session)
+    await health.upsert_record(
+        user_id=user.id,
+        values={
+            "date": date(2026, 5, 20),
+            "provider": "whoop",
+            "sleep_score": 80,
+            "recovery_score": 70,
+        },
+    )
+    await db_session.commit()
+    row = await health.get_for_date(user.id, date(2026, 5, 20), provider="whoop")
+    assert row is not None
+    assert row.sleep_score == 80

@@ -62,7 +62,8 @@ async def db_session(migrated_database: None) -> AsyncGenerator[AsyncSession, No
     async with factory() as session:
         await session.execute(
             text(
-                "TRUNCATE TABLE insights, derived_metrics, exercise_sets, workouts, "
+                "TRUNCATE TABLE daily_health_records, strava_activities, oauth_tokens, "
+                "insights, derived_metrics, exercise_sets, workouts, "
                 "users RESTART IDENTITY CASCADE"
             ),
         )

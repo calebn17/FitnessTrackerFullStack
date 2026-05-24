@@ -27,6 +27,9 @@ Canonical definitions:
 | `ExerciseSet` | same | `exercise_sets` | `workout_id` FK `ON DELETE CASCADE`; indexes per Phase 2 plan |
 | `DerivedMetrics` | same | `derived_metrics` | One row per workout (`workout_id` unique); `muscle_groups` as `TEXT[]`; row is created/updated by the workouts service when sets change (Phase 5) |
 | `Insight` | `app/domains/ai/models.py` | `insights` | `workout_id` unique; `ai_output` `JSONB`; `status` default `'pending'` |
+| `OAuthToken` | `app/domains/activities/models.py` | `oauth_tokens` | One row per `(user_id, provider)`; Strava + Whoop credentials |
+| `StravaActivity` | same | `strava_activities` | `strava_id` unique; running activities synced from Strava |
+| `DailyHealthRecord` | `app/domains/health/models.py` | `daily_health_records` | Unique `(user_id, date, provider)`; normalized wearable metrics |
 
 Relationship attribute names in code: `User.workouts`, `Workout.user`, `Workout.exercise_sets`, `Workout.derived_metrics`, `Workout.insight`, `ExerciseSet.workout`, `DerivedMetrics.workout`, `Insight.workout`. Cascades match FK `ON DELETE CASCADE` where defined in migrations.
 
@@ -52,6 +55,6 @@ FastAPI can import `get_db_session` from `app.dependencies` (re-export) or `app.
 
 **Local Docker mapping:** this backend publishes Postgres as host `5433` to container `5432` (`5433:5432`) so it can coexist with other local projects that already use host `5432`. Local default DSN is `postgresql+asyncpg://fitness:fitness@127.0.0.1:5433/fitness`.
 
-**Migrations:** Alembic async env in `alembic/env.py`; revisions under `alembic/versions/phase2_0*.py`. Run `make migrate` from `fitness-backend/`.
+**Migrations:** Alembic async env in `alembic/env.py`; revisions under `alembic/versions/phase2_0*.py` (including `phase2_05_integrations` for `oauth_tokens`, `strava_activities`, `daily_health_records`). Run `make migrate` from `fitness-backend/`.
 
 ---

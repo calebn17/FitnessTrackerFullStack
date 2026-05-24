@@ -57,6 +57,7 @@ fitness-backend/
 │   │   ├── exceptions.py       # Custom exception classes
 │   │   ├── middleware.py       # Logging, timing, error handling
 │   │   ├── security.py         # JWT validation, Supabase auth
+│   │   ├── oauth.py            # Shared OAuth exchange/refresh + CSRF state store
 │   │   └── logging.py          # Structured logging setup
 │   │
 │   ├── domains/                # Business domains
@@ -84,6 +85,22 @@ fitness-backend/
 │   │   │   ├── schemas.py
 │   │   │   ├── service.py
 │   │   │   └── router.py
+│   │   │
+│   │   ├── activities/         # Strava integration (LifeDashboard)
+│   │   │   ├── models.py       # OAuthToken, StravaActivity
+│   │   │   ├── schemas.py
+│   │   │   ├── repository.py
+│   │   │   ├── service.py
+│   │   │   ├── router.py         # /activities/* + /auth/strava/*
+│   │   │   └── strava_client.py
+│   │   │
+│   │   ├── health/             # Whoop / wearable health (LifeDashboard)
+│   │   │   ├── models.py       # DailyHealthRecord (imports OAuthToken)
+│   │   │   ├── schemas.py
+│   │   │   ├── repository.py
+│   │   │   ├── service.py
+│   │   │   ├── router.py         # /health/* + /auth/whoop/*
+│   │   │   └── whoop_client.py
 │   │   │
 │   │   └── ai/                 # AI insights domain (FAST FOLLOW)
 │   │       ├── __init__.py

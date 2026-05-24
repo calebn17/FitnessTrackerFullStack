@@ -42,6 +42,25 @@ class Settings(BaseSettings):
     rate_limit_read: str = "100/minute"
     rate_limit_write: str = "20/minute"
 
+    # Strava OAuth (LifeDashboard integrations)
+    strava_client_id: str = ""
+    strava_client_secret: str = ""
+    strava_redirect_uri: str = "http://localhost:8000/api/v1/auth/strava/callback"
+
+    # Whoop OAuth
+    whoop_client_id: str = ""
+    whoop_client_secret: str = ""
+    whoop_redirect_uri: str = "http://localhost:8000/api/v1/auth/whoop/callback"
+
+    # On-demand provider sync staleness threshold
+    sync_staleness_minutes: int = 15
+
+    def strava_configured(self) -> bool:
+        return bool(self.strava_client_id.strip() and self.strava_client_secret.strip())
+
+    def whoop_configured(self) -> bool:
+        return bool(self.whoop_client_id.strip() and self.whoop_client_secret.strip())
+
     def cors_origin_list(self) -> list[str]:
         """Parse ``cors_allowed_origins`` as comma-separated URLs."""
         return [p.strip() for p in self.cors_allowed_origins.split(",") if p.strip()]

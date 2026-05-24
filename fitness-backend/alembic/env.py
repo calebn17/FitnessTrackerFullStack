@@ -14,7 +14,9 @@ from app.config import get_settings
 from app.core.database import Base
 
 # Import models so metadata is populated for autogenerate / revision consistency.
+from app.domains.activities import models as activities_models  # noqa: F401
 from app.domains.ai import models as ai_models  # noqa: F401
+from app.domains.health import models as health_models  # noqa: F401
 from app.domains.users import models as users_models  # noqa: F401
 from app.domains.workouts import models as workouts_models  # noqa: F401
 

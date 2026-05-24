@@ -23,6 +23,8 @@ status: draft
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.domains.activities.router import router as activities_router
+from app.domains.health.router import router as health_router
 from app.domains.sync.router import router as sync_router
 from app.domains.users.router import router as users_router
 from app.domains.workouts.router import router as workouts_router
@@ -33,6 +35,8 @@ def create_app() -> FastAPI:
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(workouts_router, prefix=settings.api_v1_prefix)
     application.include_router(sync_router, prefix=settings.api_v1_prefix)
+    application.include_router(activities_router, prefix=settings.api_v1_prefix)
+    application.include_router(health_router, prefix=settings.api_v1_prefix)
     return application
 ```
 
@@ -105,6 +109,31 @@ The app factory also registers **`RequestObservabilityMiddleware`** (structured 
 | `GET` | `/api/v1/sync/status` | JSON `SyncStatusResponse`: `last_sync_at` server UTC cursor for the next poll | Required |
 
 **Semantics:** Duplicate `create` with the same `workout.client_id` is idempotent. `update` / `delete` use last-write-wins against server `updated_at`, falling back to `created_at` when `updated_at` is null. `update` with an unknown `client_id` upserts using `WorkoutCreate`-shaped `data`. Soft deletes set `workouts.deleted_at`. `server_changes` entries use `CREATE` / `UPDATE` / `DELETE` with `data` shaped like `WorkoutRead` or a small tombstone for deletes.
+
+#### Activities / Strava (LifeDashboard)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/v1/activities/recent` | Recent runs (`limit` ≤ 50, optional `sport_type`); triggers `sync_if_stale` | Required |
+| `GET` | `/api/v1/activities/summary` | Aggregated stats (`period`: `week` \| `month` \| `year`) | Required |
+| `GET` | `/api/v1/auth/strava/authorize` | JSON `{ authorization_url }` (CSRF `state` in-memory, 5 min TTL) | Required |
+| `GET` | `/api/v1/auth/strava/callback` | OAuth callback; stores `oauth_tokens` row | Required |
+| `DELETE` | `/api/v1/auth/strava/disconnect` | Deauthorize + delete tokens (**204**) | Required |
+
+Responses include `synced_at` (may reflect stale cache on provider **429**/outage). Expired/revoked refresh tokens return **401** `provider_auth_expired`. Missing Strava app credentials return **503** `provider_not_configured`.
+
+#### Health / Whoop (LifeDashboard)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| `GET` | `/api/v1/health/today` | Today’s normalized record (`sleep` / `recovery` / `strain` groups) | Required |
+| `GET` | `/api/v1/health/recent` | Last `days` records (`days` ≤ 90) | Required |
+| `GET` | `/api/v1/health/summary` | Averages over `days` (≤ 365) | Required |
+| `GET` | `/api/v1/auth/whoop/authorize` | JSON `{ authorization_url }` | Required |
+| `GET` | `/api/v1/auth/whoop/callback` | OAuth callback; stores tokens | Required |
+| `DELETE` | `/api/v1/auth/whoop/disconnect` | Revoke + delete tokens (**204**) | Required |
+
+**404** `no_health_data` when `/health/today` has no row for the current date. Sync uses on-demand `sync_if_stale` (default **15** minutes via `SYNC_STALENESS_MINUTES`).
 
 #### AI Insights Endpoints
 
