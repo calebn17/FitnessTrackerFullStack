@@ -30,6 +30,8 @@ from app.core.middleware import RequestObservabilityMiddleware
 from app.core.rate_limit import limiter
 from app.core.security_headers import SecurityHeadersMiddleware, apply_security_headers
 from app.dependencies import get_db_session
+from app.domains.activities.router import router as activities_router
+from app.domains.health.router import router as health_router
 from app.domains.sync.router import router as sync_router
 from app.domains.users.router import router as users_router
 from app.domains.workouts.router import router as workouts_router
@@ -111,6 +113,8 @@ def create_app() -> FastAPI:
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(workouts_router, prefix=settings.api_v1_prefix)
     application.include_router(sync_router, prefix=settings.api_v1_prefix)
+    application.include_router(activities_router, prefix=settings.api_v1_prefix)
+    application.include_router(health_router, prefix=settings.api_v1_prefix)
 
     @application.get("/health")
     async def health(

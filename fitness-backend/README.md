@@ -51,6 +51,7 @@ make dev
 - Postgres host port: `5433` (`docker-compose` maps `5433:5432` so it can coexist with other local Postgres services)
 - Auth: set `SUPABASE_JWT_SECRET` in `.env` (optional: `SUPABASE_JWT_AUDIENCE`, default `authenticated`; `SUPABASE_URL` reserved for future use). Without `SUPABASE_JWT_SECRET`, authenticated routes return **401** with `detail.code` = `auth_not_configured`.
 - **Phase 8 (production hardening):** optional `ENVIRONMENT`, `CORS_ALLOWED_ORIGINS`, `DATABASE_POOL_*`, and rate-limit strings — see [`app/config.py`](app/config.py). Optional k6 load tests: [`load-tests/README.md`](load-tests/README.md).
+- **LifeDashboard integrations:** optional `STRAVA_*`, `WHOOP_*`, and `SYNC_STALENESS_MINUTES` in `.env.example` for Strava activities and Whoop health endpoints (`/api/v1/activities/*`, `/api/v1/health/*`, `/api/v1/auth/strava/*`, `/api/v1/auth/whoop/*`).
 
 Stop containers:
 
